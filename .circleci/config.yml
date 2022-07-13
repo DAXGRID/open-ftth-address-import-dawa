@@ -1,0 +1,133 @@
+version: 2.1
+
+executors:
+  dotnet-core-sdk:
+    docker:
+    - image: mcr.microsoft.com/dotnet/sdk:6.0
+      auth:
+        username: $DOCKER_LOGIN
+        password: $DOCKER_ACCESSTOKEN
+  docker-publisher:
+    environment:
+      IMAGE_NAME: openftth/address-indexer-dawa
+    docker:
+      - image: cimg/base:2020.09
+        auth:
+          username: $DOCKER_LOGIN
+          password: $DOCKER_ACCESSTOKEN
+  alpine-git:
+    environment:
+      IMAGE_NAME: address-indexer-dawa
+      CHART_PATH: ./dax/address-indexer-dawa
+      GIT_USER_NAME: "dax-bot"
+      GIT_USER_EMAIL: "admin@dax.dk"
+      GIT_CLONE_REPO: "git@github.com:DAXGRID/dax-charts.git"
+      SSH_FINGERPRINT: ""
+    docker:
+    - image: alpine/git
+
+jobs:
+  build-app:
+    executor: dotnet-core-sdk
+    steps:
+      - checkout
+      - run:
+          name: Restore
+          command: dotnet restore
+      - run:
+          name: Build
+          command: dotnet build -c Release
+
+  build-docker-image:
+    executor: docker-publisher
+    steps:
+     - checkout
+     - setup_remote_docker
+     - run:
+         name: Build Docker image
+         command: |
+            docker build -t $IMAGE_NAME:latest .
+     - run:
+         name: Archive Docker image
+         command: docker save -o image.tar $IMAGE_NAME
+     - persist_to_workspace:
+         root: .
+         paths:
+          - ./image.tar
+
+  docker-publish-image:
+    executor: docker-publisher
+    steps:
+     - attach_workspace:
+         at: /tmp/workspace
+     - setup_remote_docker
+     - run:
+         name: Load archived Docker image
+         command: docker load -i /tmp/workspace/image.tar
+     - run:
+         name: Publish Docker Image to Docker Hub
+         command: |
+           echo "$DOCKER_ACCESSTOKEN" | docker login -u $DOCKER_LOGIN --password-stdin
+           IMAGE_TAG=${CIRCLE_TAG}
+           docker tag $IMAGE_NAME:latest $IMAGE_NAME:$IMAGE_TAG
+           docker push $IMAGE_NAME:latest
+           docker push $IMAGE_NAME:$IMAGE_TAG
+  update-helm-chart:
+    executor: alpine-git
+    steps:
+      - checkout
+      - add_ssh_keys:
+          fingerprints:
+            - $SSH_FINGERPRINT
+      - run:
+          name: key-scan
+          command: ssh-keyscan github.com >> ~/.ssh/known_hosts
+      - run:
+          name: git clone open-ftth-chart
+          command: git clone $GIT_CLONE_REPO
+      - run:
+          name: package and push
+          command: |
+             apk add bash
+             IMAGE_TAG_NO_V=${CIRCLE_TAG:1}
+             cd ./dax-charts
+             git config user.email $GIT_USER_EMAIL
+             git config user.name $GIT_USER_NAME
+             ./scripts/update-chart-version.sh $CHART_PATH $IMAGE_TAG_NO_V
+             git add .
+             git commit -m "upgrades $IMAGE_NAME to version $CIRCLE_TAG"
+             git push
+workflows:
+  build-test-upload_image:
+    jobs:
+      - build-app:
+          context: docker
+          filters:
+            tags:
+              only: /.*/
+      - build-docker-image:
+          context: docker
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
+      - docker-publish-image:
+          context: docker
+          requires:
+           - build-app
+           - build-docker-image
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
+      - update-helm-chart:
+          context: docker
+          requires:
+           - docker-publish-image
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
