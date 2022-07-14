@@ -22,7 +22,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\AddressIndexer.Dawa\AddressIndexer.Dawa.csproj" />
+    <ProjectReference Include="..\..\src\OpenFTTH.AddressIndexer.Dawa\OpenFTTH.AddressIndexer.Dawa.csproj" />
   </ItemGroup>
 
 </Project>

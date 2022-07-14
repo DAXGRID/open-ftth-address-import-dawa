@@ -1,4 +1,4 @@
-namespace AddressIndexer.Dawa.Tests;
+namespace OpenFTTH.AddressIndexer.Dawa.Tests;
 
 public class UnitTest1
 {
