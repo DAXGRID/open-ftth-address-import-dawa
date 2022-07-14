@@ -30,6 +30,7 @@ internal static class HostConfig
         {
             services.AddHostedService<AddressIndexerHost>();
             services.AddSingleton<Settings>();
+            services.AddHttpClient();
         });
     }
 
@@ -47,7 +48,7 @@ internal static class HostConfig
                     .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
                     .MinimumLevel.Override("System", LogEventLevel.Warning)
                     .Enrich.FromLogContext()
-                    .WriteTo.Console(new CompactJsonFormatter())
+                    .WriteTo.Console(new RenderedCompactJsonFormatter())
                     .CreateLogger();
 
                 loggingBuilder.AddSerilog(logger, true);
