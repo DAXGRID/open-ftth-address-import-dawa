@@ -1,9 +1,11 @@
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using OpenFTTH.EventSourcing;
+using OpenFTTH.EventSourcing.Postgres;
 using Serilog;
 using Serilog.Events;
 using Serilog.Formatting.Compact;
+using System.Reflection;
 using System.Text.Json;
 
 namespace OpenFTTH.AddressIndexer.Dawa;
@@ -55,14 +57,24 @@ public sealed class Program
             throw new ArgumentException("Could not deserialize appsettings into settings.");
 
         return new ServiceCollection()
+            .AddSingleton<Startup>()
             .AddSingleton<Settings>(settings)
             .AddSingleton<IAddressImport, AddressImportDawa>()
+            .AddSingleton<IEventStore>(
+                e =>
+                new PostgresEventStore(
+                    serviceProvider: e.GetRequiredService<IServiceProvider>(),
+                    connectionString: settings.EventStoreConnectionString,
+                    databaseSchemaName: "events"))
+            .AddProjections(new Assembly[]
+            {
+                AppDomain.CurrentDomain.Load("OpenFTTH.Core.Address")
+            })
+            .AddHttpClient()
             .AddLogging(logging =>
             {
                 logging.AddSerilog(logger, true);
             })
-            .AddSingleton<Startup>()
-            .AddHttpClient()
             .BuildServiceProvider();
     }
 }

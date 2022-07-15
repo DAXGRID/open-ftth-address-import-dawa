@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using OpenFTTH.EventSourcing;
 
 namespace OpenFTTH.AddressIndexer.Dawa;
 
@@ -6,16 +7,23 @@ internal class Startup
 {
     private ILogger<Startup> _logger;
     private IAddressImport _addressImport;
+    private IEventStore _eventStore;
 
-    public Startup(ILogger<Startup> logger, IAddressImport addressImport)
+    public Startup(
+        ILogger<Startup> logger,
+        IAddressImport addressImport,
+        IEventStore eventStore)
     {
         _logger = logger;
         _addressImport = addressImport;
+        _eventStore = eventStore;
     }
 
     public async Task Start(CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Starting {Name}.", nameof(Startup));
+
+        await _eventStore.DehydrateProjectionsAsync().ConfigureAwait(false);
 
         var lastRunTransctionId = await TransactionStore
             .GetLastRunTransactionId()
@@ -33,8 +41,5 @@ internal class Startup
         {
             // Changes import
         }
-
-
-        await Task.CompletedTask.ConfigureAwait(false);
     }
 }

@@ -1,5 +1,6 @@
 using DawaAddress;
 using Microsoft.Extensions.Logging;
+using OpenFTTH.EventSourcing;
 
 namespace OpenFTTH.AddressIndexer.Dawa;
 
@@ -7,11 +8,16 @@ internal sealed class AddressImportDawa : IAddressImport
 {
     private readonly DawaClient _dawaClient;
     private readonly ILogger<AddressImportDawa> _logger;
+    private readonly IEventStore _eventStore;
 
-    public AddressImportDawa(HttpClient httpClient, ILogger<AddressImportDawa> logger)
+    public AddressImportDawa(
+        HttpClient httpClient,
+        ILogger<AddressImportDawa> logger,
+        IEventStore eventStore)
     {
         _dawaClient = new(httpClient);
         _logger = logger;
+        _eventStore = eventStore;
     }
 
     public async Task Full(CancellationToken cancellationToken = default)
