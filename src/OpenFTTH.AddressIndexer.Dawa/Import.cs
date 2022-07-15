@@ -1,0 +1,1 @@
+namespace OpenFTTH.AddressIndexer.Dawa;
