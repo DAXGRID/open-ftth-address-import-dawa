@@ -16,12 +16,12 @@ public sealed class Program
     {
         using var token = new CancellationTokenSource();
         var serviceProvider = BuildServiceProvider();
-        var startup = serviceProvider.GetService<Startup>();
+        var startup = serviceProvider.GetService<ImportStarter>();
         var logger = serviceProvider.GetService<ILogger<Program>>();
 
         if (startup is null)
         {
-            throw new InvalidOperationException($"{nameof(Startup)} has not been configured.");
+            throw new InvalidOperationException($"{nameof(ImportStarter)} has not been configured.");
         }
 
         if (logger is null)
@@ -57,9 +57,10 @@ public sealed class Program
             throw new ArgumentException("Could not deserialize appsettings into settings.");
 
         return new ServiceCollection()
-            .AddSingleton<Startup>()
+            .AddSingleton<ImportStarter>()
             .AddSingleton<Settings>(settings)
             .AddSingleton<IAddressImport, AddressImportDawa>()
+            .AddSingleton<ITransactionStore, PostgresTransactionStore>()
             .AddSingleton<IEventStore>(
                 e =>
                 new PostgresEventStore(

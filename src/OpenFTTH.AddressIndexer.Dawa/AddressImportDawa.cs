@@ -20,6 +20,11 @@ internal sealed class AddressImportDawa : IAddressImport
         _eventStore = eventStore;
     }
 
+    public Task Changes(ulong lastTransactionId, CancellationToken cancellation = default)
+    {
+        throw new NotImplementedException();
+    }
+
     public async Task Full(CancellationToken cancellationToken = default)
     {
         var latestTransaction = await _dawaClient
