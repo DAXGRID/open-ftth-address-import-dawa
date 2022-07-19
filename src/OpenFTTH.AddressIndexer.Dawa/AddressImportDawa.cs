@@ -63,19 +63,8 @@ internal sealed class AddressImportDawa : IAddressImport
             }
             else
             {
-                var error = ((RoadError)create.Errors.First());
-
-                if (error.Code == RoadErrorCode.NAME_CANNOT_BE_WHITE_SPACE_OR_NULL)
-                {
-                    _logger.LogWarning(
-                        "ExternalId: '{ExternalId}', {ErrorMessage}",
-                        road.Id, error.Message);
-                }
-                else
-                {
-                    throw new InvalidOperationException(
-                        create.Errors.FirstOrDefault()?.Message);
-                }
+                throw new InvalidOperationException(
+                    create.Errors.FirstOrDefault()?.Message);
             }
         }
     }
