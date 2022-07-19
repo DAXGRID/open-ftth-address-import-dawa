@@ -1,6 +1,6 @@
 namespace OpenFTTH.AddressIndexer.Dawa;
 
-internal interface ITransactionStore
+public interface ITransactionStore
 {
     Task<ulong?> GetLastId();
 }

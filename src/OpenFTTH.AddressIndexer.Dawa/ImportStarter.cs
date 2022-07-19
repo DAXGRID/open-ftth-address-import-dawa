@@ -3,7 +3,7 @@ using OpenFTTH.EventSourcing;
 
 namespace OpenFTTH.AddressIndexer.Dawa;
 
-internal class ImportStarter
+public class ImportStarter
 {
     private readonly ILogger<ImportStarter> _logger;
     private readonly IAddressImport _addressImport;
@@ -26,22 +26,21 @@ internal class ImportStarter
     {
         _logger.LogInformation("Starting {Name}.", nameof(ImportStarter));
 
-        await _eventStore.DehydrateProjectionsAsync().ConfigureAwait(false);
-
         var lastTransctionId = await _transactionStore
             .GetLastId()
             .ConfigureAwait(false);
 
         if (lastTransctionId is null)
         {
-            _logger.LogInformation(
-                "{LastRunTransactionId} is null so we do full import.",
-                nameof(lastTransctionId));
-
+            _logger.LogInformation("First run so we do full import.");
             await _addressImport.Full(cancellationToken).ConfigureAwait(false);
         }
         else
         {
+            // We only need to dehydrate if we are getting changeset.
+            await _eventStore.DehydrateProjectionsAsync().ConfigureAwait(false);
+
+            _logger.LogInformation("Importing from {LastTransactionId}.", lastTransctionId);
             await _addressImport.Changes(lastTransctionId.Value, cancellationToken)
                 .ConfigureAwait(false);
         }

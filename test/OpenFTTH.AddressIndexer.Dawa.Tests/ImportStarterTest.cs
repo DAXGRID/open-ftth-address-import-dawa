@@ -1,11 +1,22 @@
 using FakeItEasy;
+using FluentAssertions;
 using Microsoft.Extensions.Logging;
+using OpenFTTH.Core.Address;
 using OpenFTTH.EventSourcing;
 
 namespace OpenFTTH.AddressIndexer.Dawa.Tests;
 
 public class ImportStarterTest
 {
+    private readonly ImportStarter _importStarter;
+    private readonly IEventStore _eventStore;
+
+    public ImportStarterTest(ImportStarter importStarter, IEventStore eventStore)
+    {
+        _importStarter = importStarter;
+        _eventStore = eventStore;
+    }
+
     [Fact]
     public async Task No_previous_transaction_id_do_full_import()
     {
@@ -42,5 +53,16 @@ public class ImportStarterTest
 
         A.CallTo(() => addressImport.Changes(50, default)).MustHaveHappenedOnceExactly();
         A.CallTo(() => addressImport.Full(default)).MustNotHaveHappened();
+    }
+
+    [Fact]
+    public async Task Full_import()
+    {
+        await _importStarter.Start().ConfigureAwait(true);
+
+        var addressProjection = _eventStore.Projections.Get<AddressProjection>();
+
+        addressProjection.PostCodeIds.Count.Should().BeGreaterThan(100);
+        addressProjection.RoadIds.Count.Should().BeGreaterThan(100);
     }
 }
