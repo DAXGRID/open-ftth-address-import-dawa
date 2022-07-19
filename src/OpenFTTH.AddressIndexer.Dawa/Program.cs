@@ -21,7 +21,8 @@ public sealed class Program
 
         if (startup is null)
         {
-            throw new InvalidOperationException($"{nameof(ImportStarter)} has not been configured.");
+            throw new InvalidOperationException(
+                $"{nameof(ImportStarter)} has not been configured.");
         }
 
         if (logger is null)
