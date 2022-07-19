@@ -32,29 +32,19 @@ internal sealed class AddressImportDawa : IAddressImport
             .GetLatestTransactionAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        var postCodesAsyncEnumerable = _dawaClient
-            .GetAllPostCodesAsync(latestTransaction.Id, cancellationToken)
+        _logger.LogInformation("Starting full import of post codes.");
+        await FullImportPostCodes(
+            latestTransaction, cancellationToken)
             .ConfigureAwait(false);
 
-        await foreach (var postCode in postCodesAsyncEnumerable)
-        {
-            var postCodeAR = new PostCodeAR();
-            var create = postCodeAR.Create(
-                id: Guid.NewGuid(),
-                number: postCode.Number,
-                name: postCode.Name);
+        _logger.LogInformation("Starting full import of roads.");
+        await FullImportRoads(latestTransaction, cancellationToken)
+            .ConfigureAwait(false);
+    }
 
-            if (create.IsSuccess)
-            {
-                _eventStore.Aggregates.Store(postCodeAR);
-            }
-            else
-            {
-                throw new InvalidOperationException(
-                    create.Errors.FirstOrDefault()?.Message);
-            }
-        }
-
+    private async Task FullImportRoads(
+        DawaTransaction latestTransaction, CancellationToken cancellationToken)
+    {
         var roadsAsyncEnumerable = _dawaClient
             .GetAllRoadsAsync(latestTransaction.Id, cancellationToken)
             .ConfigureAwait(false);
@@ -86,6 +76,33 @@ internal sealed class AddressImportDawa : IAddressImport
                     throw new InvalidOperationException(
                         create.Errors.FirstOrDefault()?.Message);
                 }
+            }
+        }
+    }
+
+    private async Task FullImportPostCodes(
+        DawaTransaction latestTransaction, CancellationToken cancellationToken)
+    {
+        var postCodesAsyncEnumerable = _dawaClient
+            .GetAllPostCodesAsync(latestTransaction.Id, cancellationToken)
+            .ConfigureAwait(false);
+
+        await foreach (var postCode in postCodesAsyncEnumerable)
+        {
+            var postCodeAR = new PostCodeAR();
+            var create = postCodeAR.Create(
+                id: Guid.NewGuid(),
+                number: postCode.Number,
+                name: postCode.Name);
+
+            if (create.IsSuccess)
+            {
+                _eventStore.Aggregates.Store(postCodeAR);
+            }
+            else
+            {
+                throw new InvalidOperationException(
+                    create.Errors.FirstOrDefault()?.Message);
             }
         }
     }
