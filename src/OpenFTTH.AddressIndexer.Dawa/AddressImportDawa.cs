@@ -33,7 +33,7 @@ internal sealed class AddressImportDawa : IAddressImport
             .ConfigureAwait(false);
 
         _logger.LogInformation(
-            "Starting full import of post codes using transaction id '{TransactionId}'.",
+            "Starting full import of post codes using tid '{TransactionId}'.",
             latestTransaction.Id);
         var insertedPostCodesCount = await FullImportPostCodes(
             latestTransaction, cancellationToken).ConfigureAwait(false);
@@ -41,7 +41,7 @@ internal sealed class AddressImportDawa : IAddressImport
             "Finished inserting '{Count}' post codes.", insertedPostCodesCount);
 
         _logger.LogInformation(
-            "Starting full import of roads using transaction id '{TransactionId}'.",
+            "Starting full import of roads using tid '{TransactionId}'.",
             latestTransaction.Id);
         var insertedRoadsCount = await FullImportRoads(
             latestTransaction, cancellationToken).ConfigureAwait(false);
@@ -49,12 +49,20 @@ internal sealed class AddressImportDawa : IAddressImport
             "Finished inserting '{Count}' roads.", insertedRoadsCount);
 
         _logger.LogInformation(
-            "Starting full import of access addresses using transaction id '{TransactionId}'.",
+            "Starting full import of access addresses using tid '{TransactionId}'.",
             latestTransaction.Id);
         var insertedAccessAddressesCount = await FullImportAccessAdress(
             latestTransaction, cancellationToken).ConfigureAwait(false);
         _logger.LogInformation(
             "Finished inserting '{Count}' access addresses.", insertedAccessAddressesCount);
+
+        _logger.LogInformation(
+            "Starting full import of unit addresses using tid '{TransactionId}'.",
+            latestTransaction.Id);
+        var insertedUnitAddressesCount = await FullImportUnitAddresses(
+            latestTransaction, cancellationToken).ConfigureAwait(false);
+        _logger.LogInformation(
+            "Finished inserting '{Count}' unit-addresses.", insertedUnitAddressesCount);
     }
 
     private async Task<int> FullImportRoads(
@@ -140,7 +148,7 @@ internal sealed class AddressImportDawa : IAddressImport
                     dawaAccessAddress.PostDistrictCode, out var postCodeId))
             {
                 _logger.LogWarning(
-                    "Could not find id using external post district code: '{PostDistrictCode}'.",
+                    "Could not find id using official post district code: '{PostDistrictCode}'.",
                     dawaAccessAddress.PostDistrictCode);
                 continue;
             }
@@ -149,12 +157,12 @@ internal sealed class AddressImportDawa : IAddressImport
                     dawaAccessAddress.RoadId.ToString(), out var roadId))
             {
                 _logger.LogWarning(
-                    "Could not find roadId using external roadId code: '{RoadId}'.",
+                    "Could not find roadId using official roadId code: '{RoadId}'.",
                     dawaAccessAddress.RoadId);
                 continue;
             }
 
-            var create = accessAddressAR.Create(
+            var createResult = accessAddressAR.Create(
                 id: Guid.NewGuid(),
                 officialId: dawaAccessAddress.Id.ToString(),
                 created: dawaAccessAddress.Created,
@@ -173,7 +181,7 @@ internal sealed class AddressImportDawa : IAddressImport
                 existingRoadIds: existingRoadIds,
                 existingPostCodeIds: existingPostCodeIds);
 
-            if (create.IsSuccess)
+            if (createResult.IsSuccess)
             {
                 count++;
                 _eventStore.Aggregates.Store(accessAddressAR);
@@ -181,7 +189,56 @@ internal sealed class AddressImportDawa : IAddressImport
             else
             {
                 throw new InvalidOperationException(
-                    create.Errors.FirstOrDefault()?.Message);
+                    createResult.Errors.FirstOrDefault()?.Message);
+            }
+        }
+
+        return count;
+    }
+
+    private async Task<int> FullImportUnitAddresses(
+        DawaTransaction latestTransaction, CancellationToken cancellationToken)
+    {
+        var addressProjection = _eventStore.Projections.Get<AddressProjection>();
+
+        var dawaUnitAddresssesAsyncEnumerable = _dawaClient
+            .GetAllUnitAddresses(latestTransaction.Id, cancellationToken)
+            .ConfigureAwait(false);
+
+        var count = 0;
+        await foreach (var dawaUnitAddress in dawaUnitAddresssesAsyncEnumerable)
+        {
+            var unitAddressAR = new UnitAddressAR();
+
+            if (!addressProjection.AccessAddressOfficialIdToId.TryGetValue(
+                    dawaUnitAddress.AccessAddressId.ToString(), out var accessAddressId))
+            {
+                _logger.LogWarning(
+                    "Could not find accessAddress using official accessAddressId: '{AccessAddressId}'.",
+                    dawaUnitAddress.AccessAddressId);
+                continue;
+            }
+
+            var createResult = unitAddressAR.Create(
+                id: Guid.NewGuid(),
+                officialId: dawaUnitAddress.Id.ToString(),
+                accessAddressId: accessAddressId,
+                status: MapDawaStatus(dawaUnitAddress.Status),
+                floorName: dawaUnitAddress.FloorName,
+                suitName: dawaUnitAddress.SuitName,
+                created: dawaUnitAddress.Created,
+                updated: dawaUnitAddress.Updated,
+                existingAccessAddressIds: addressProjection.AccessAddressIds);
+
+            if (createResult.IsSuccess)
+            {
+                count++;
+                _eventStore.Aggregates.Store(unitAddressAR);
+            }
+            else
+            {
+                throw new InvalidOperationException(
+                    createResult.Errors.FirstOrDefault()?.Message);
             }
         }
 
