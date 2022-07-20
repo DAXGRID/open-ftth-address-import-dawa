@@ -32,21 +32,32 @@ internal sealed class AddressImportDawa : IAddressImport
             .GetLatestTransactionAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        _logger.LogInformation("Starting full import of post codes.");
-        await FullImportPostCodes(
-            latestTransaction, cancellationToken)
-            .ConfigureAwait(false);
+        _logger.LogInformation(
+            "Starting full import of post codes using transaction id '{TransactionId}'.",
+            latestTransaction.Id);
+        var insertedPostCodesCount = await FullImportPostCodes(
+            latestTransaction, cancellationToken).ConfigureAwait(false);
+        _logger.LogInformation(
+            "Finished inserting '{Count}' post codes.", insertedPostCodesCount);
 
-        _logger.LogInformation("Starting full import of roads.");
-        await FullImportRoads(latestTransaction, cancellationToken)
-            .ConfigureAwait(false);
+        _logger.LogInformation(
+            "Starting full import of roads using transaction id '{TransactionId}'.",
+            latestTransaction.Id);
+        var insertedRoadsCount = await FullImportRoads(
+            latestTransaction, cancellationToken).ConfigureAwait(false);
+        _logger.LogInformation(
+            "Finished inserting '{Count}' roads.", insertedRoadsCount);
 
-        _logger.LogInformation("Starting full import of access addresses.");
-        await FullImportAccessAdress(latestTransaction, cancellationToken)
-            .ConfigureAwait(false);
+        _logger.LogInformation(
+            "Starting full import of access addresses using transaction id '{TransactionId}'.",
+            latestTransaction.Id);
+        var insertedAccessAddressesCount = await FullImportAccessAdress(
+            latestTransaction, cancellationToken).ConfigureAwait(false);
+        _logger.LogInformation(
+            "Finished inserting '{Count}' access addresses.", insertedAccessAddressesCount);
     }
 
-    private async Task FullImportRoads(
+    private async Task<int> FullImportRoads(
         DawaTransaction latestTransaction, CancellationToken cancellationToken)
     {
         var dawaRoadsAsyncEnumerable = _dawaClient
@@ -74,10 +85,10 @@ internal sealed class AddressImportDawa : IAddressImport
             }
         }
 
-        _logger.LogInformation("Finished importing '{Count}' roads.", count);
+        return count;
     }
 
-    private async Task FullImportPostCodes(
+    private async Task<int> FullImportPostCodes(
         DawaTransaction latestTransaction, CancellationToken cancellationToken)
     {
         var dawaPostCodesAsyncEnumerable = _dawaClient
@@ -105,10 +116,10 @@ internal sealed class AddressImportDawa : IAddressImport
             }
         }
 
-        _logger.LogInformation("Finished importing '{Count}' post codes.", count);
+        return count;
     }
 
-    private async Task FullImportAccessAdress(
+    private async Task<int> FullImportAccessAdress(
         DawaTransaction latestTransaction, CancellationToken cancellationToken)
     {
         var addressProjection = _eventStore.Projections.Get<AddressProjection>();
@@ -117,8 +128,9 @@ internal sealed class AddressImportDawa : IAddressImport
             .GetAllAccessAddresses(latestTransaction.Id, cancellationToken)
             .ConfigureAwait(false);
 
-        var existingPostCodeIds = addressProjection.PostCodeIds;
+        // Its import that these are computed up here, since they're expensive computed properties.
         var existingRoadIds = addressProjection.RoadIds;
+        var existingPostCodeIds = addressProjection.PostCodeIds;
 
         int count = 0;
         await foreach (var dawaAccessAddress in dawaAccessAddressesAsyncEnumerable)
@@ -173,7 +185,7 @@ internal sealed class AddressImportDawa : IAddressImport
             }
         }
 
-        _logger.LogInformation("Finished importing {Count} access addresses.", count);
+        return count;
     }
 
     private static Status MapDawaStatus(DawaStatus status)

@@ -58,7 +58,12 @@ public class ImportStarterTest
     [Fact]
     public async Task Full_import()
     {
-        await _importStarter.Start().ConfigureAwait(true);
+        // We cancel after 20 mins, to indicate something is wrong.
+        // Since it should not take any longer than ~10mins.
+        using var cts = new CancellationTokenSource();
+        cts.CancelAfter(TimeSpan.FromMinutes(20));
+
+        await _importStarter.Start(cts.Token).ConfigureAwait(true);
 
         var addressProjection = _eventStore.Projections.Get<AddressProjection>();
 

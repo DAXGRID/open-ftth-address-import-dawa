@@ -12,7 +12,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="DawaAddress" Version="0.5.0" />
+    <PackageReference Include="DawaAddress" Version="0.5.1" />
     <PackageReference Include="Microsoft.Extensions.Http" Version="6.0.0" />
     <PackageReference Include="Microsoft.Extensions.Logging" Version="6.0.0" />
     <PackageReference Include="OpenFTTH.Core.Address" Version="0.3.0" />
