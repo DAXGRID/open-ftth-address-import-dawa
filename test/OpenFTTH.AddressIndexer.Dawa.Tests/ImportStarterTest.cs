@@ -64,5 +64,6 @@ public class ImportStarterTest
 
         addressProjection.PostCodeIds.Count.Should().BeGreaterThan(100);
         addressProjection.RoadIds.Count.Should().BeGreaterThan(100);
+        addressProjection.AccessAddressIds.Count.Should().BeGreaterThan(100);
     }
 }

@@ -40,6 +40,10 @@ internal sealed class AddressImportDawa : IAddressImport
         _logger.LogInformation("Starting full import of roads.");
         await FullImportRoads(latestTransaction, cancellationToken)
             .ConfigureAwait(false);
+
+        _logger.LogInformation("Starting full import of access addresses.");
+        await FullImportAccessAdress(latestTransaction, cancellationToken)
+            .ConfigureAwait(false);
     }
 
     private async Task FullImportRoads(
@@ -54,7 +58,7 @@ internal sealed class AddressImportDawa : IAddressImport
             var roadAR = new RoadAR();
             var create = roadAR.Create(
                 id: Guid.NewGuid(),
-                externalId: road.Id,
+                externalId: road.Id.ToString(),
                 name: road.Name);
 
             if (create.IsSuccess)
@@ -95,4 +99,79 @@ internal sealed class AddressImportDawa : IAddressImport
             }
         }
     }
+
+    private async Task FullImportAccessAdress(
+        DawaTransaction latestTransaction, CancellationToken cancellationToken)
+    {
+        var addressProjection = _eventStore.Projections.Get<AddressProjection>();
+
+        var accessAddressesAsyncEnumerable = _dawaClient
+            .GetAllAccessAddresses(latestTransaction.Id, cancellationToken)
+            .ConfigureAwait(false);
+
+        var existingPostCodeIds = addressProjection.PostCodeIds;
+        var existingRoadIds = addressProjection.RoadIds;
+
+        await foreach (var accessAddress in accessAddressesAsyncEnumerable)
+        {
+            var accessAddressAR = new AccessAddressAR();
+            if (!addressProjection.PostCodeNumberToId.TryGetValue(
+                    accessAddress.PostDistrictCode, out var postCodeId))
+            {
+                _logger.LogWarning(
+                    "Could not find id using external post district code: '{PostDistrictCode}'.",
+                    accessAddress.PostDistrictCode);
+                continue;
+            }
+
+            if (!addressProjection.RoadExternalIdToId.TryGetValue(
+                    accessAddress.RoadId.ToString(), out var roadId))
+            {
+                _logger.LogWarning(
+                    "Could not find roadId using external roadId code: '{RoadId}'.",
+                    accessAddress.RoadId);
+                continue;
+            }
+
+            var create = accessAddressAR.Create(
+                id: Guid.NewGuid(),
+                officialId: accessAddress.Id,
+                created: accessAddress.Created,
+                updated: accessAddress.Updated,
+                municipalCode: accessAddress.MunicipalCode,
+                status: MapDawaStatus(accessAddress.Status),
+                roadCode: accessAddress.RoadCode,
+                houseNumber: accessAddress.HouseNumber,
+                postCodeId: postCodeId,
+                eastCoordinate: accessAddress.EastCoordinate,
+                northCoordinate: accessAddress.NorthCoordinate,
+                locationUpdated: accessAddress.LocationUpdated,
+                supplementaryTownName: accessAddress.SupplementaryTownName,
+                plotId: accessAddress.PlotId,
+                roadId: roadId,
+                existingRoadIds: existingRoadIds,
+                existingPostCodeIds: existingPostCodeIds);
+
+            if (create.IsSuccess)
+            {
+                _eventStore.Aggregates.Store(accessAddressAR);
+            }
+            else
+            {
+                throw new InvalidOperationException(
+                    create.Errors.FirstOrDefault()?.Message);
+            }
+        }
+    }
+
+    private static Status MapDawaStatus(DawaStatus status)
+        => status switch
+        {
+            DawaStatus.Active => Status.Active,
+            DawaStatus.Canceled => Status.Canceled,
+            DawaStatus.Discontinued => Status.Discontinued,
+            DawaStatus.Pending => Status.Pending,
+            _ => throw new ArgumentException(
+                $"{status} cannot be converted.", nameof(status))
+        };
 }
