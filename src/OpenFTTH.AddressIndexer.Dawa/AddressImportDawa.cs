@@ -49,20 +49,22 @@ internal sealed class AddressImportDawa : IAddressImport
     private async Task FullImportRoads(
         DawaTransaction latestTransaction, CancellationToken cancellationToken)
     {
-        var roadsAsyncEnumerable = _dawaClient
+        var dawaRoadsAsyncEnumerable = _dawaClient
             .GetAllRoadsAsync(latestTransaction.Id, cancellationToken)
             .ConfigureAwait(false);
 
-        await foreach (var road in roadsAsyncEnumerable)
+        var count = 0;
+        await foreach (var dawaRoad in dawaRoadsAsyncEnumerable)
         {
             var roadAR = new RoadAR();
             var create = roadAR.Create(
                 id: Guid.NewGuid(),
-                externalId: road.Id.ToString(),
-                name: road.Name);
+                officialId: dawaRoad.Id.ToString(),
+                name: dawaRoad.Name);
 
             if (create.IsSuccess)
             {
+                count++;
                 _eventStore.Aggregates.Store(roadAR);
             }
             else
@@ -71,25 +73,29 @@ internal sealed class AddressImportDawa : IAddressImport
                     create.Errors.FirstOrDefault()?.Message);
             }
         }
+
+        _logger.LogInformation("Finished importing '{Count}' roads.", count);
     }
 
     private async Task FullImportPostCodes(
         DawaTransaction latestTransaction, CancellationToken cancellationToken)
     {
-        var postCodesAsyncEnumerable = _dawaClient
+        var dawaPostCodesAsyncEnumerable = _dawaClient
             .GetAllPostCodesAsync(latestTransaction.Id, cancellationToken)
             .ConfigureAwait(false);
 
-        await foreach (var postCode in postCodesAsyncEnumerable)
+        var count = 0;
+        await foreach (var dawaPostCode in dawaPostCodesAsyncEnumerable)
         {
             var postCodeAR = new PostCodeAR();
             var create = postCodeAR.Create(
                 id: Guid.NewGuid(),
-                number: postCode.Number,
-                name: postCode.Name);
+                number: dawaPostCode.Number,
+                name: dawaPostCode.Name);
 
             if (create.IsSuccess)
             {
+                count++;
                 _eventStore.Aggregates.Store(postCodeAR);
             }
             else
@@ -98,6 +104,8 @@ internal sealed class AddressImportDawa : IAddressImport
                     create.Errors.FirstOrDefault()?.Message);
             }
         }
+
+        _logger.LogInformation("Finished importing '{Count}' post codes.", count);
     }
 
     private async Task FullImportAccessAdress(
@@ -105,55 +113,57 @@ internal sealed class AddressImportDawa : IAddressImport
     {
         var addressProjection = _eventStore.Projections.Get<AddressProjection>();
 
-        var accessAddressesAsyncEnumerable = _dawaClient
+        var dawaAccessAddressesAsyncEnumerable = _dawaClient
             .GetAllAccessAddresses(latestTransaction.Id, cancellationToken)
             .ConfigureAwait(false);
 
         var existingPostCodeIds = addressProjection.PostCodeIds;
         var existingRoadIds = addressProjection.RoadIds;
 
-        await foreach (var accessAddress in accessAddressesAsyncEnumerable)
+        int count = 0;
+        await foreach (var dawaAccessAddress in dawaAccessAddressesAsyncEnumerable)
         {
             var accessAddressAR = new AccessAddressAR();
             if (!addressProjection.PostCodeNumberToId.TryGetValue(
-                    accessAddress.PostDistrictCode, out var postCodeId))
+                    dawaAccessAddress.PostDistrictCode, out var postCodeId))
             {
                 _logger.LogWarning(
                     "Could not find id using external post district code: '{PostDistrictCode}'.",
-                    accessAddress.PostDistrictCode);
+                    dawaAccessAddress.PostDistrictCode);
                 continue;
             }
 
-            if (!addressProjection.RoadExternalIdToId.TryGetValue(
-                    accessAddress.RoadId.ToString(), out var roadId))
+            if (!addressProjection.RoadOfficialIdIdToId.TryGetValue(
+                    dawaAccessAddress.RoadId.ToString(), out var roadId))
             {
                 _logger.LogWarning(
                     "Could not find roadId using external roadId code: '{RoadId}'.",
-                    accessAddress.RoadId);
+                    dawaAccessAddress.RoadId);
                 continue;
             }
 
             var create = accessAddressAR.Create(
                 id: Guid.NewGuid(),
-                officialId: accessAddress.Id,
-                created: accessAddress.Created,
-                updated: accessAddress.Updated,
-                municipalCode: accessAddress.MunicipalCode,
-                status: MapDawaStatus(accessAddress.Status),
-                roadCode: accessAddress.RoadCode,
-                houseNumber: accessAddress.HouseNumber,
+                officialId: dawaAccessAddress.Id.ToString(),
+                created: dawaAccessAddress.Created,
+                updated: dawaAccessAddress.Updated,
+                municipalCode: dawaAccessAddress.MunicipalCode,
+                status: MapDawaStatus(dawaAccessAddress.Status),
+                roadCode: dawaAccessAddress.RoadCode,
+                houseNumber: dawaAccessAddress.HouseNumber,
                 postCodeId: postCodeId,
-                eastCoordinate: accessAddress.EastCoordinate,
-                northCoordinate: accessAddress.NorthCoordinate,
-                locationUpdated: accessAddress.LocationUpdated,
-                supplementaryTownName: accessAddress.SupplementaryTownName,
-                plotId: accessAddress.PlotId,
+                eastCoordinate: dawaAccessAddress.EastCoordinate,
+                northCoordinate: dawaAccessAddress.NorthCoordinate,
+                locationUpdated: dawaAccessAddress.LocationUpdated,
+                supplementaryTownName: dawaAccessAddress.SupplementaryTownName,
+                plotId: dawaAccessAddress.PlotId,
                 roadId: roadId,
                 existingRoadIds: existingRoadIds,
                 existingPostCodeIds: existingPostCodeIds);
 
             if (create.IsSuccess)
             {
+                count++;
                 _eventStore.Aggregates.Store(accessAddressAR);
             }
             else
@@ -162,6 +172,8 @@ internal sealed class AddressImportDawa : IAddressImport
                     create.Errors.FirstOrDefault()?.Message);
             }
         }
+
+        _logger.LogInformation("Finished importing {Count} access addresses.", count);
     }
 
     private static Status MapDawaStatus(DawaStatus status)
