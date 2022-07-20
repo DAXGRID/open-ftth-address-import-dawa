@@ -9,3 +9,5 @@ dotnet_diagnostic.CA1812.severity = none
 
 # CA1848: We disable this since we do not log very much.
 dotnet_diagnostic.CA1848.severity = none
+
+#dotnet_diagnostic.CA1849.severity = none
