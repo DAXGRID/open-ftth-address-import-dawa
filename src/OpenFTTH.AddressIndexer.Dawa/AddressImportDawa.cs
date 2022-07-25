@@ -79,7 +79,8 @@ internal sealed class AddressImportDawa : IAddressImport
             var create = roadAR.Create(
                 id: Guid.NewGuid(),
                 officialId: dawaRoad.Id.ToString(),
-                name: dawaRoad.Name);
+                name: dawaRoad.Name,
+                status: MapRoadStatus(dawaRoad.Status));
 
             if (create.IsSuccess)
             {
@@ -136,11 +137,11 @@ internal sealed class AddressImportDawa : IAddressImport
             .GetAllAccessAddresses(latestTransaction.Id, cancellationToken)
             .ConfigureAwait(false);
 
-        // Its import that these are computed up here, since they're expensive computed properties.
-        var existingRoadIds = addressProjection.RoadIds;
-        var existingPostCodeIds = addressProjection.PostCodeIds;
+        // Important to be computed outside the loop, the computation is expensive.
+        var existingRoadIds = addressProjection.GetRoadIds();
+        var existingPostCodeIds = addressProjection.GetPostCodeIds();
 
-        int count = 0;
+        var count = 0;
         await foreach (var dawaAccessAddress in dawaAccessAddressesAsyncEnumerable)
         {
             var accessAddressAR = new AccessAddressAR();
@@ -148,7 +149,8 @@ internal sealed class AddressImportDawa : IAddressImport
                     dawaAccessAddress.PostDistrictCode, out var postCodeId))
             {
                 _logger.LogWarning(
-                    "Could not find id using official post district code: '{PostDistrictCode}'.",
+                    @"Could not find id using official
+post district code: '{PostDistrictCode}'.",
                     dawaAccessAddress.PostDistrictCode);
                 continue;
             }
@@ -168,7 +170,7 @@ internal sealed class AddressImportDawa : IAddressImport
                 created: dawaAccessAddress.Created,
                 updated: dawaAccessAddress.Updated,
                 municipalCode: dawaAccessAddress.MunicipalCode,
-                status: MapDawaStatus(dawaAccessAddress.Status),
+                status: MapAccessAddressStatus(dawaAccessAddress.Status),
                 roadCode: dawaAccessAddress.RoadCode,
                 houseNumber: dawaAccessAddress.HouseNumber,
                 postCodeId: postCodeId,
@@ -205,6 +207,9 @@ internal sealed class AddressImportDawa : IAddressImport
             .GetAllUnitAddresses(latestTransaction.Id, cancellationToken)
             .ConfigureAwait(false);
 
+        // Important to be computed outside the loop, the computation is expensive.
+        var existingAccessAddressIds = addressProjection.AccessAddressIds;
+
         var count = 0;
         await foreach (var dawaUnitAddress in dawaUnitAddresssesAsyncEnumerable)
         {
@@ -223,12 +228,12 @@ internal sealed class AddressImportDawa : IAddressImport
                 id: Guid.NewGuid(),
                 officialId: dawaUnitAddress.Id.ToString(),
                 accessAddressId: accessAddressId,
-                status: MapDawaStatus(dawaUnitAddress.Status),
+                status: MapUnitAddressStatus(dawaUnitAddress.Status),
                 floorName: dawaUnitAddress.FloorName,
                 suitName: dawaUnitAddress.SuitName,
                 created: dawaUnitAddress.Created,
                 updated: dawaUnitAddress.Updated,
-                existingAccessAddressIds: addressProjection.AccessAddressIds);
+                existingAccessAddressIds: existingAccessAddressIds);
 
             if (createResult.IsSuccess)
             {
@@ -245,14 +250,35 @@ internal sealed class AddressImportDawa : IAddressImport
         return count;
     }
 
-    private static Status MapDawaStatus(DawaStatus status)
+    private static AccessAddressStatus MapAccessAddressStatus(DawaStatus status)
         => status switch
         {
-            DawaStatus.Active => Status.Active,
-            DawaStatus.Canceled => Status.Canceled,
-            DawaStatus.Discontinued => Status.Discontinued,
-            DawaStatus.Pending => Status.Pending,
+            DawaStatus.Active => AccessAddressStatus.Active,
+            DawaStatus.Canceled => AccessAddressStatus.Canceled,
+            DawaStatus.Discontinued => AccessAddressStatus.Discontinued,
+            DawaStatus.Pending => AccessAddressStatus.Pending,
             _ => throw new ArgumentException(
                 $"{status} cannot be converted.", nameof(status))
         };
+
+    private static UnitAddressStatus MapUnitAddressStatus(DawaStatus status)
+        => status switch
+        {
+            DawaStatus.Active => UnitAddressStatus.Active,
+            DawaStatus.Canceled => UnitAddressStatus.Canceled,
+            DawaStatus.Discontinued => UnitAddressStatus.Discontinued,
+            DawaStatus.Pending => UnitAddressStatus.Pending,
+            _ => throw new ArgumentException(
+                $"{status} cannot be converted.", nameof(status))
+        };
+
+    private static RoadStatus MapRoadStatus(DawaRoadStatus status)
+        => status switch
+        {
+            DawaRoadStatus.Effective => RoadStatus.Effective,
+            DawaRoadStatus.Temporary => RoadStatus.Temporary,
+            _ => throw new ArgumentException(
+                $"{status} cannot be converted.", nameof(status))
+        };
+
 }
