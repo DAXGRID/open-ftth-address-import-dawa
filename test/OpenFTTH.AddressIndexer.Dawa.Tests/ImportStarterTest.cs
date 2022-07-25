@@ -67,8 +67,8 @@ public class ImportStarterTest
 
         var addressProjection = _eventStore.Projections.Get<AddressProjection>();
 
-        addressProjection.PostCodeIds.Count.Should().BeGreaterThan(100);
-        addressProjection.RoadIds.Count.Should().BeGreaterThan(100);
+        addressProjection.GetPostCodeIds().Count.Should().BeGreaterThan(100);
+        addressProjection.GetRoadIds().Count.Should().BeGreaterThan(100);
         addressProjection.AccessAddressIds.Count.Should().BeGreaterThan(100);
     }
 }
