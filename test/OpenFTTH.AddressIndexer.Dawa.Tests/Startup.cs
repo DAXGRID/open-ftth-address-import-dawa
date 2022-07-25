@@ -27,7 +27,7 @@ public static class Startup
 
         services.AddHttpClient();
         services.AddSingleton<ImportStarter>();
-        services.AddSingleton<IAddressImport, AddressImportDawa>();
+        services.AddSingleton<IAddressFullImport, AddressFullImportDawa>();
         services.AddSingleton<ITransactionStore, PostgresTransactionStore>();
         services.AddSingleton<IEventStore, InMemEventStore>();
         {

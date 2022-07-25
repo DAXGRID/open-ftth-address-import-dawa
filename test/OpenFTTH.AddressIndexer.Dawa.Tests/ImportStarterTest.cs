@@ -21,38 +21,50 @@ public class ImportStarterTest
     public async Task No_previous_transaction_id_do_full_import()
     {
         var logger = A.Fake<ILogger<ImportStarter>>();
-        var addressImport = A.Fake<IAddressImport>();
+        var addressFullImport = A.Fake<IAddressFullImport>();
+        var addressChangesImport = A.Fake<IAddressChangesImport>();
         var eventStore = A.Fake<IEventStore>();
         var transactionStore = A.Fake<ITransactionStore>();
 
         A.CallTo(() => transactionStore.GetLastId()).Returns<ulong?>(null);
 
         var importStarter = new ImportStarter(
-            logger, addressImport, eventStore, transactionStore);
+            logger: logger,
+            eventStore: eventStore,
+            transactionStore: transactionStore,
+            addressFullImport: addressFullImport,
+            addressChangesImport: addressChangesImport);
 
         await importStarter.Start().ConfigureAwait(true);
 
-        A.CallTo(() => addressImport.Full(default)).MustHaveHappenedOnceExactly();
-        A.CallTo(() => addressImport.Changes(0, default)).MustNotHaveHappened();
+        A.CallTo(() => addressFullImport.Start(default)).MustHaveHappenedOnceExactly();
+        A.CallTo(() => addressChangesImport.Start(0, default)).MustNotHaveHappened();
     }
 
     [Fact]
     public async Task Has_previous_transaction_id_do_change_import()
     {
         var logger = A.Fake<ILogger<ImportStarter>>();
-        var addressImport = A.Fake<IAddressImport>();
+        var addressFullImport = A.Fake<IAddressFullImport>();
+        var addressChangesImport = A.Fake<IAddressChangesImport>();
         var eventStore = A.Fake<IEventStore>();
         var transactionStore = A.Fake<ITransactionStore>();
 
         A.CallTo(() => transactionStore.GetLastId()).Returns<ulong?>(50);
 
         var importStarter = new ImportStarter(
-            logger, addressImport, eventStore, transactionStore);
+            logger: logger,
+            eventStore: eventStore,
+            transactionStore: transactionStore,
+            addressFullImport: addressFullImport,
+            addressChangesImport: addressChangesImport);
 
         await importStarter.Start().ConfigureAwait(true);
 
-        A.CallTo(() => addressImport.Changes(50, default)).MustHaveHappenedOnceExactly();
-        A.CallTo(() => addressImport.Full(default)).MustNotHaveHappened();
+        A.CallTo(() => addressChangesImport.Start(50, default))
+            .MustHaveHappenedOnceExactly();
+        A.CallTo(() => addressFullImport.Start(default))
+            .MustNotHaveHappened();
     }
 
     [Fact]

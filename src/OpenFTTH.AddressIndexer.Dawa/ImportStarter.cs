@@ -6,20 +6,23 @@ namespace OpenFTTH.AddressIndexer.Dawa;
 public class ImportStarter
 {
     private readonly ILogger<ImportStarter> _logger;
-    private readonly IAddressImport _addressImport;
     private readonly IEventStore _eventStore;
     private readonly ITransactionStore _transactionStore;
+    private readonly IAddressFullImport _addressFullImport;
+    private readonly IAddressChangesImport _addressChangesImport;
 
     public ImportStarter(
         ILogger<ImportStarter> logger,
-        IAddressImport addressImport,
         IEventStore eventStore,
-        ITransactionStore transactionStore)
+        ITransactionStore transactionStore,
+        IAddressFullImport addressFullImport,
+        IAddressChangesImport addressChangesImport)
     {
         _logger = logger;
-        _addressImport = addressImport;
+        _addressFullImport = addressFullImport;
         _eventStore = eventStore;
         _transactionStore = transactionStore;
+        _addressChangesImport = addressChangesImport;
     }
 
     public async Task Start(CancellationToken cancellationToken = default)
@@ -33,7 +36,7 @@ public class ImportStarter
         if (lastTransctionId is null)
         {
             _logger.LogInformation("First run so we do full import.");
-            await _addressImport.Full(cancellationToken).ConfigureAwait(false);
+            await _addressFullImport.Start(cancellationToken).ConfigureAwait(false);
         }
         else
         {
@@ -41,7 +44,7 @@ public class ImportStarter
             await _eventStore.DehydrateProjectionsAsync().ConfigureAwait(false);
 
             _logger.LogInformation("Importing from {LastTransactionId}.", lastTransctionId);
-            await _addressImport.Changes(lastTransctionId.Value, cancellationToken)
+            await _addressChangesImport.Start(lastTransctionId.Value, cancellationToken)
                 .ConfigureAwait(false);
         }
     }

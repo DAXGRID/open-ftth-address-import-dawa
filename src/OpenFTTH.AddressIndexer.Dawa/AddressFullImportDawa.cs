@@ -5,15 +5,15 @@ using OpenFTTH.EventSourcing;
 
 namespace OpenFTTH.AddressIndexer.Dawa;
 
-internal sealed class AddressImportDawa : IAddressImport
+internal sealed class AddressFullImportDawa : IAddressFullImport
 {
     private readonly DawaClient _dawaClient;
-    private readonly ILogger<AddressImportDawa> _logger;
+    private readonly ILogger<AddressFullImportDawa> _logger;
     private readonly IEventStore _eventStore;
 
-    public AddressImportDawa(
+    public AddressFullImportDawa(
         HttpClient httpClient,
-        ILogger<AddressImportDawa> logger,
+        ILogger<AddressFullImportDawa> logger,
         IEventStore eventStore)
     {
         _dawaClient = new(httpClient);
@@ -21,22 +21,17 @@ internal sealed class AddressImportDawa : IAddressImport
         _eventStore = eventStore;
     }
 
-    public Task Changes(ulong lastTransactionId, CancellationToken cancellation = default)
-    {
-        throw new NotImplementedException();
-    }
-
-    public async Task Full(CancellationToken cancellationToken = default)
+    public async Task Start(CancellationToken cancellation = default)
     {
         var latestTransaction = await _dawaClient
-            .GetLatestTransactionAsync(cancellationToken)
+            .GetLatestTransactionAsync(cancellation)
             .ConfigureAwait(false);
 
         _logger.LogInformation(
             "Starting full import of post codes using tid '{TransactionId}'.",
             latestTransaction.Id);
         var insertedPostCodesCount = await FullImportPostCodes(
-            latestTransaction, cancellationToken).ConfigureAwait(false);
+            latestTransaction, cancellation).ConfigureAwait(false);
         _logger.LogInformation(
             "Finished inserting '{Count}' post codes.", insertedPostCodesCount);
 
@@ -44,7 +39,7 @@ internal sealed class AddressImportDawa : IAddressImport
             "Starting full import of roads using tid '{TransactionId}'.",
             latestTransaction.Id);
         var insertedRoadsCount = await FullImportRoads(
-            latestTransaction, cancellationToken).ConfigureAwait(false);
+            latestTransaction, cancellation).ConfigureAwait(false);
         _logger.LogInformation(
             "Finished inserting '{Count}' roads.", insertedRoadsCount);
 
@@ -52,7 +47,7 @@ internal sealed class AddressImportDawa : IAddressImport
             "Starting full import of access addresses using tid '{TransactionId}'.",
             latestTransaction.Id);
         var insertedAccessAddressesCount = await FullImportAccessAdress(
-            latestTransaction, cancellationToken).ConfigureAwait(false);
+            latestTransaction, cancellation).ConfigureAwait(false);
         _logger.LogInformation(
             "Finished inserting '{Count}' access addresses.", insertedAccessAddressesCount);
 
@@ -60,7 +55,7 @@ internal sealed class AddressImportDawa : IAddressImport
             "Starting full import of unit addresses using tid '{TransactionId}'.",
             latestTransaction.Id);
         var insertedUnitAddressesCount = await FullImportUnitAddresses(
-            latestTransaction, cancellationToken).ConfigureAwait(false);
+            latestTransaction, cancellation).ConfigureAwait(false);
         _logger.LogInformation(
             "Finished inserting '{Count}' unit-addresses.", insertedUnitAddressesCount);
     }
