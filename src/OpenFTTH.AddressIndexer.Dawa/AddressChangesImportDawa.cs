@@ -12,11 +12,11 @@ internal sealed class AddressChangesImportDawa : IAddressChangesImport
     private readonly IEventStore _eventStore;
 
     public AddressChangesImportDawa(
-        DawaClient dawaClient,
+        HttpClient httpClient,
         ILogger<AddressFullImportDawa> logger,
         IEventStore eventStore)
     {
-        _dawaClient = dawaClient;
+        _dawaClient = new DawaClient(httpClient);
         _logger = logger;
         _eventStore = eventStore;
     }
@@ -34,11 +34,25 @@ internal sealed class AddressChangesImportDawa : IAddressChangesImport
             lastTransactionId,
             latestTransaction.Id);
 
+        var changesPostCodesCount = await ImportChangesPostCodes(
+            lastTransactionId, latestTransaction, cancellation).ConfigureAwait(false);
+
+        _logger.LogInformation(
+            "Finished handling '{Count}' post code changes.",
+            changesPostCodesCount);
+    }
+
+    private async Task<int> ImportChangesPostCodes(
+        ulong lastTransactionId,
+        DawaTransaction latestTransaction,
+        CancellationToken cancellation)
+    {
         var changesPostCodesAsyncEnumerable = _dawaClient.GetChangesPostCodesAsync(
             latestTransaction.Id, lastTransactionId, cancellation).ConfigureAwait(false);
 
         var addressProjection = _eventStore.Projections.Get<AddressProjection>();
 
+        var count = 0;
         await foreach (var postCodeChange in changesPostCodesAsyncEnumerable)
         {
             if (postCodeChange.Operation == DawaEntityChangeOperation.Insert)
@@ -59,11 +73,10 @@ internal sealed class AddressChangesImportDawa : IAddressChangesImport
                         createResult.Errors.FirstOrDefault()?.Message);
                 }
             }
-            else if (postCodeChange.Operation == DawaEntityChangeOperation.Update ||
-                     postCodeChange.Operation == DawaEntityChangeOperation.Delete)
+            else if (postCodeChange.Operation == DawaEntityChangeOperation.Update)
             {
-                if (!addressProjection.PostCodeNumberToId
-                    .TryGetValue(postCodeChange.Data.Number, out var postCodeId))
+                if (!addressProjection.PostCodeNumberToId.TryGetValue(
+                        postCodeChange.Data.Number, out var postCodeId))
                 {
                     _logger.LogWarning(
                         "Could not find id on '{PostNumber}'",
@@ -71,20 +84,48 @@ internal sealed class AddressChangesImportDawa : IAddressChangesImport
                 }
 
                 var postCodeAR = _eventStore.Aggregates.Load<PostCodeAR>(postCodeId);
-                if (postCodeAR is null)
+                if (postCodeAR is not null)
+                {
+                    postCodeAR.Update(postCodeChange.Data.Name);
+                }
+                else
                 {
                     throw new InvalidOperationException(
                         @$"Could not load {nameof(postCodeAR)}
 on {nameof(postCodeId)}: '{postCodeId}'");
                 }
+            }
+            else if (postCodeChange.Operation == DawaEntityChangeOperation.Delete)
+            {
+                if (!addressProjection.PostCodeNumberToId.TryGetValue(
+                        postCodeChange.Data.Number, out var postCodeId))
+                {
+                    _logger.LogWarning(
+                        "Could not find id on '{PostNumber}'",
+                        postCodeChange.Data.Number);
+                }
 
-                postCodeAR.Update(postCodeChange.Data.Name);
+                var postCodeAR = _eventStore.Aggregates.Load<PostCodeAR>(postCodeId);
+                if (postCodeAR is not null)
+                {
+                    postCodeAR.Delete();
+                }
+                else
+                {
+                    throw new InvalidOperationException(
+                        @$"Could not load {nameof(postCodeAR)}
+on {nameof(postCodeId)}: '{postCodeId}'");
+                }
             }
             else
             {
                 throw new InvalidOperationException(
                     "No valid handling of post code change.");
             }
+
+            count++;
         }
+
+        return count;
     }
 }

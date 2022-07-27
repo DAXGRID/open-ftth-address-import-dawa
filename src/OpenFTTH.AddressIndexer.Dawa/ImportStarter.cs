@@ -29,23 +29,39 @@ public class ImportStarter
     {
         _logger.LogInformation("Starting {Name}.", nameof(ImportStarter));
 
-        var lastTransctionId = await _transactionStore
-            .GetLastId()
+        var lastCompletedTransactionId = await _transactionStore
+            .GetLastCompletedTransactionId(cancellationToken)
             .ConfigureAwait(false);
 
-        if (lastTransctionId is null)
+        var newestTransactionId = await _transactionStore
+            .GetNewestTransactionId(cancellationToken)
+            .ConfigureAwait(false);
+
+        if (lastCompletedTransactionId is null)
         {
-            _logger.LogInformation("First run so we do full import.");
-            await _addressFullImport.Start(cancellationToken).ConfigureAwait(false);
+            _logger.LogInformation("First run, so we do full import.");
+            await _addressFullImport
+                .Start(newestTransactionId, cancellationToken)
+                .ConfigureAwait(false);
         }
         else
         {
             // We only need to dehydrate if we are getting changeset.
-            await _eventStore.DehydrateProjectionsAsync().ConfigureAwait(false);
+            _eventStore.DehydrateProjections();
 
-            _logger.LogInformation("Importing from {LastTransactionId}.", lastTransctionId);
-            await _addressChangesImport.Start(lastTransctionId.Value, cancellationToken)
+            _logger.LogInformation(
+                "Importing from {LastCompletedTransactionId}.",
+                lastCompletedTransactionId);
+
+            await _addressChangesImport
+                .Start(lastCompletedTransactionId.Value, cancellationToken)
                 .ConfigureAwait(false);
         }
+
+        _logger.LogInformation("Storing {TransactionId}.", newestTransactionId);
+
+        await _transactionStore
+            .StoreTransactionId(newestTransactionId)
+            .ConfigureAwait(false);
     }
 }
