@@ -22,29 +22,33 @@ internal sealed class AddressChangesImportDawa : IAddressChangesImport
     }
 
     public async Task Start(
-        ulong lastTransactionId,
-        ulong newestTransactionId,
+        ulong fromTransactionId,
+        ulong toTransactionId,
         CancellationToken cancellation = default)
     {
         _logger.LogInformation(
             "Getting changes from '{LastTransactionId} to {LastestTransactionId}'.",
-            lastTransactionId,
-            newestTransactionId);
+            fromTransactionId,
+            toTransactionId);
 
-        var changesPostCodesCount = await ImportChangesPostCodes(
-            lastTransactionId, newestTransactionId, cancellation).ConfigureAwait(false);
-
+        var changesPostCodesCount = await ImportPostCodeChanges(
+            fromTransactionId, toTransactionId, cancellation).ConfigureAwait(false);
         _logger.LogInformation(
             "Finished handling '{Count}' post code changes.", changesPostCodesCount);
+
+        var changesRoadsCount = await ImportRoadChanges(
+            fromTransactionId, toTransactionId, cancellation).ConfigureAwait(false);
+        _logger.LogInformation(
+            "Finished handling '{Count}' road changes.", changesRoadsCount);
     }
 
-    private async Task<int> ImportChangesPostCodes(
-        ulong lastTransactionId,
-        ulong newestTransactionId,
-        CancellationToken cancellation)
+    private async Task<int> ImportPostCodeChanges(
+        ulong fromTransactionId,
+        ulong toTransactionId,
+        CancellationToken cancellationToken)
     {
         var changesPostCodesAsyncEnumerable = _dawaClient.GetChangesPostCodesAsync(
-            newestTransactionId, lastTransactionId, cancellation).ConfigureAwait(false);
+            fromTransactionId, toTransactionId, cancellationToken).ConfigureAwait(false);
 
         var addressProjection = _eventStore.Projections.Get<AddressProjection>();
 
@@ -111,6 +115,108 @@ on {nameof(postCodeId)}: '{postCodeId}'");
                     throw new InvalidOperationException(
                         @$"Could not load {nameof(postCodeAR)}
 on {nameof(postCodeId)}: '{postCodeId}'");
+                }
+            }
+            else
+            {
+                throw new InvalidOperationException(
+                    "No valid handling of post code change.");
+            }
+
+            count++;
+        }
+
+        return count;
+    }
+
+    private async Task<int> ImportRoadChanges(
+        ulong fromTransactionId,
+        ulong toTransactionId,
+        CancellationToken cancellationToken)
+    {
+        var addressProjection = _eventStore.Projections.Get<AddressProjection>();
+
+        var roadChangesAsyncEnumerable = _dawaClient.GetChangesRoadsAsync(
+            fromTransactionId, toTransactionId, cancellationToken).ConfigureAwait(false);
+
+        var count = 0;
+        await foreach (var change in roadChangesAsyncEnumerable)
+        {
+            if (change.Operation == DawaEntityChangeOperation.Insert)
+            {
+                var roadAR = new RoadAR();
+
+                var createResult = roadAR.Create(
+                    id: Guid.NewGuid(),
+                    officialId: change.Data.Id.ToString(),
+                    name: change.Data.Name,
+                    status: DawaStatusMapper.MapRoadStatus(change.Data.Status));
+
+                if (createResult.IsSuccess)
+                {
+                    _eventStore.Aggregates.Store(roadAR);
+                }
+                else
+                {
+                    throw new InvalidOperationException(
+                        createResult.Errors.FirstOrDefault()?.Message);
+                }
+            }
+            else if (change.Operation == DawaEntityChangeOperation.Update)
+            {
+                if (!addressProjection.RoadOfficialIdIdToId
+                    .TryGetValue(change.Data.Id.ToString(), out var roadId))
+                {
+                    throw new InvalidOperationException(
+                        $"Could not lookup road on id '{change.Data.Id}'.");
+                }
+
+                var roadAR = _eventStore.Aggregates.Load<RoadAR>(roadId);
+                if (roadAR is null)
+                {
+                    throw new InvalidOperationException(
+                        $"Could not load {nameof(RoadAR)} on id '{roadId}'.");
+                }
+
+                var updateResult = roadAR.Update(
+                    name: change.Data.Name,
+                    status: DawaStatusMapper.MapRoadStatus(change.Data.Status));
+
+                if (updateResult.IsSuccess)
+                {
+                    _eventStore.Aggregates.Store(roadAR);
+                }
+                else
+                {
+                    throw new InvalidOperationException(
+                       updateResult.Errors.First().Message);
+                }
+            }
+            else if (change.Operation == DawaEntityChangeOperation.Delete)
+            {
+                if (!addressProjection.RoadOfficialIdIdToId
+                    .TryGetValue(change.Data.Id.ToString(), out var roadId))
+                {
+                    throw new InvalidOperationException(
+                        $"Could not lookup road on id '{change.Data.Id}'.");
+                }
+
+                var roadAR = _eventStore.Aggregates.Load<RoadAR>(roadId);
+                if (roadAR is null)
+                {
+                    throw new InvalidOperationException(
+                        $"Could not load {nameof(RoadAR)} on id '{roadId}'.");
+                }
+
+                var deleteResult = roadAR.Delete();
+                if (deleteResult.IsSuccess)
+                {
+                    _eventStore.Aggregates.Store(roadAR);
+                }
+                else
+                {
+                    throw new InvalidOperationException(
+                        deleteResult.Errors.First().Message);
                 }
             }
             else

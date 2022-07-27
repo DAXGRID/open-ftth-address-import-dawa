@@ -21,13 +21,15 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
         _eventStore = eventStore;
     }
 
-    public async Task Start(ulong transactionId, CancellationToken cancellation = default)
+    public async Task Start(
+        ulong transactionId,
+        CancellationToken cancellationToken = default)
     {
         _logger.LogInformation(
             "Starting full import of post codes using tid '{TransactionId}'.",
             transactionId);
         var insertedPostCodesCount = await FullImportPostCodes(
-            transactionId, cancellation).ConfigureAwait(false);
+            transactionId, cancellationToken).ConfigureAwait(false);
         _logger.LogInformation(
             "Finished inserting '{Count}' post codes.", insertedPostCodesCount);
 
@@ -35,7 +37,7 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
             "Starting full import of roads using tid '{TransactionId}'.",
             transactionId);
         var insertedRoadsCount = await FullImportRoads(
-            transactionId, cancellation).ConfigureAwait(false);
+            transactionId, cancellationToken).ConfigureAwait(false);
         _logger.LogInformation(
             "Finished inserting '{Count}' roads.", insertedRoadsCount);
 
@@ -43,7 +45,7 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
             "Starting full import of access addresses using tid '{TransactionId}'.",
             transactionId);
         var insertedAccessAddressesCount = await FullImportAccessAdress(
-            transactionId, cancellation).ConfigureAwait(false);
+            transactionId, cancellationToken).ConfigureAwait(false);
         _logger.LogInformation(
             "Finished inserting '{Count}' access addresses.", insertedAccessAddressesCount);
 
@@ -51,7 +53,7 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
             "Starting full import of unit addresses using tid '{TransactionId}'.",
             transactionId);
         var insertedUnitAddressesCount = await FullImportUnitAddresses(
-            transactionId, cancellation).ConfigureAwait(false);
+            transactionId, cancellationToken).ConfigureAwait(false);
         _logger.LogInformation(
             "Finished inserting '{Count}' unit-addresses.", insertedUnitAddressesCount);
     }
@@ -71,7 +73,7 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
                 id: Guid.NewGuid(),
                 officialId: dawaRoad.Id.ToString(),
                 name: dawaRoad.Name,
-                status: MapRoadStatus(dawaRoad.Status));
+                status: DawaStatusMapper.MapRoadStatus(dawaRoad.Status));
 
             if (create.IsSuccess)
             {
@@ -161,7 +163,7 @@ post district code: '{PostDistrictCode}'.",
                 created: dawaAccessAddress.Created,
                 updated: dawaAccessAddress.Updated,
                 municipalCode: dawaAccessAddress.MunicipalCode,
-                status: MapAccessAddressStatus(dawaAccessAddress.Status),
+                status: DawaStatusMapper.MapAccessAddressStatus(dawaAccessAddress.Status),
                 roadCode: dawaAccessAddress.RoadCode,
                 houseNumber: dawaAccessAddress.HouseNumber,
                 postCodeId: postCodeId,
@@ -219,7 +221,7 @@ post district code: '{PostDistrictCode}'.",
                 id: Guid.NewGuid(),
                 officialId: dawaUnitAddress.Id.ToString(),
                 accessAddressId: accessAddressId,
-                status: MapUnitAddressStatus(dawaUnitAddress.Status),
+                status: DawaStatusMapper.MapUnitAddressStatus(dawaUnitAddress.Status),
                 floorName: dawaUnitAddress.FloorName,
                 suitName: dawaUnitAddress.SuitName,
                 created: dawaUnitAddress.Created,
@@ -240,36 +242,4 @@ post district code: '{PostDistrictCode}'.",
 
         return count;
     }
-
-    private static AccessAddressStatus MapAccessAddressStatus(DawaStatus status)
-        => status switch
-        {
-            DawaStatus.Active => AccessAddressStatus.Active,
-            DawaStatus.Canceled => AccessAddressStatus.Canceled,
-            DawaStatus.Discontinued => AccessAddressStatus.Discontinued,
-            DawaStatus.Pending => AccessAddressStatus.Pending,
-            _ => throw new ArgumentException(
-                $"{status} cannot be converted.", nameof(status))
-        };
-
-    private static UnitAddressStatus MapUnitAddressStatus(DawaStatus status)
-        => status switch
-        {
-            DawaStatus.Active => UnitAddressStatus.Active,
-            DawaStatus.Canceled => UnitAddressStatus.Canceled,
-            DawaStatus.Discontinued => UnitAddressStatus.Discontinued,
-            DawaStatus.Pending => UnitAddressStatus.Pending,
-            _ => throw new ArgumentException(
-                $"{status} cannot be converted.", nameof(status))
-        };
-
-    private static RoadStatus MapRoadStatus(DawaRoadStatus status)
-        => status switch
-        {
-            DawaRoadStatus.Effective => RoadStatus.Effective,
-            DawaRoadStatus.Temporary => RoadStatus.Temporary,
-            _ => throw new ArgumentException(
-                $"{status} cannot be converted.", nameof(status))
-        };
-
 }

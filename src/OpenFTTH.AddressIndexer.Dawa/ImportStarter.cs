@@ -54,7 +54,9 @@ public class ImportStarter
                 lastCompletedTransactionId);
 
             await _addressChangesImport
-                .Start(lastCompletedTransactionId.Value, newestTransactionId, cancellationToken)
+                .Start(lastCompletedTransactionId.Value,
+                       newestTransactionId,
+                       cancellationToken)
                 .ConfigureAwait(false);
         }
 

@@ -109,7 +109,7 @@ public class ImportStarterTest
 
         var addressProjection = _eventStore.Projections.Get<AddressProjection>();
 
-        await importStarter.Start(cts.Token);
+        await importStarter.Start(cts.Token).ConfigureAwait(true);
 
         addressProjection.GetPostCodeIds().Count
             .Should().BeGreaterThan(100);
@@ -119,10 +119,6 @@ public class ImportStarterTest
             .Should().BeGreaterThan(100);
         addressProjection.AccessAddressOfficialIdToId.Count
             .Should().BeGreaterThan(100);
-
-        // We want to make sure that the last transactionId has been stored.
-        (await _transactionStore.GetLastCompletedTransactionId(default))
-            .Value.Should().Be(3805212);
     }
 
     [Fact, Order(2)]
@@ -149,7 +145,7 @@ public class ImportStarterTest
             addressFullImport: _addressFullImport,
             addressChangesImport: _addressChangesImport);
 
-        await importStarter.Start();
+        await importStarter.Start().ConfigureAwait(true);
 
         A.CallTo(() => transactionStore.StoreTransactionId(transactionId))
             .MustHaveHappened();
