@@ -23,32 +23,28 @@ internal sealed class AddressChangesImportDawa : IAddressChangesImport
 
     public async Task Start(
         ulong lastTransactionId,
+        ulong newestTransactionId,
         CancellationToken cancellation = default)
     {
-        var latestTransaction = await _dawaClient
-            .GetLatestTransactionAsync(cancellation)
-            .ConfigureAwait(false);
-
         _logger.LogInformation(
             "Getting changes from '{LastTransactionId} to {LastestTransactionId}'.",
             lastTransactionId,
-            latestTransaction.Id);
+            newestTransactionId);
 
         var changesPostCodesCount = await ImportChangesPostCodes(
-            lastTransactionId, latestTransaction, cancellation).ConfigureAwait(false);
+            lastTransactionId, newestTransactionId, cancellation).ConfigureAwait(false);
 
         _logger.LogInformation(
-            "Finished handling '{Count}' post code changes.",
-            changesPostCodesCount);
+            "Finished handling '{Count}' post code changes.", changesPostCodesCount);
     }
 
     private async Task<int> ImportChangesPostCodes(
         ulong lastTransactionId,
-        DawaTransaction latestTransaction,
+        ulong newestTransactionId,
         CancellationToken cancellation)
     {
         var changesPostCodesAsyncEnumerable = _dawaClient.GetChangesPostCodesAsync(
-            latestTransaction.Id, lastTransactionId, cancellation).ConfigureAwait(false);
+            newestTransactionId, lastTransactionId, cancellation).ConfigureAwait(false);
 
         var addressProjection = _eventStore.Projections.Get<AddressProjection>();
 

@@ -60,7 +60,7 @@ public class ImportStarterTest
         A.CallTo(() => addressFullImport.Start(latestTransactionId, default))
             .MustHaveHappenedOnceExactly();
 
-        A.CallTo(() => addressChangesImport.Start(default, default))
+        A.CallTo(() => addressChangesImport.Start(default, default, default))
             .MustNotHaveHappened();
     }
 
@@ -86,7 +86,7 @@ public class ImportStarterTest
 
         await importStarter.Start().ConfigureAwait(true);
 
-        A.CallTo(() => addressChangesImport.Start(lastCompletedTransactionId, default))
+        A.CallTo(() => addressChangesImport.Start(lastCompletedTransactionId, default, default))
             .MustHaveHappenedOnceExactly();
         A.CallTo(() => addressFullImport.Start(lastCompletedTransactionId, default))
             .MustNotHaveHappened();
