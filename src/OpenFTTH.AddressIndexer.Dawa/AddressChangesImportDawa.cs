@@ -24,7 +24,7 @@ internal sealed class AddressChangesImportDawa : IAddressChangesImport
     public async Task Start(
         ulong fromTransactionId,
         ulong toTransactionId,
-        CancellationToken cancellation = default)
+        CancellationToken cancellationToken = default)
     {
         _logger.LogInformation(
             "Getting changes from '{LastTransactionId} to {LastestTransactionId}'.",
@@ -32,14 +32,19 @@ internal sealed class AddressChangesImportDawa : IAddressChangesImport
             toTransactionId);
 
         var changesPostCodesCount = await ImportPostCodeChanges(
-            fromTransactionId, toTransactionId, cancellation).ConfigureAwait(false);
+            fromTransactionId, toTransactionId, cancellationToken).ConfigureAwait(false);
         _logger.LogInformation(
             "Finished handling '{Count}' post code changes.", changesPostCodesCount);
 
         var changesRoadsCount = await ImportRoadChanges(
-            fromTransactionId, toTransactionId, cancellation).ConfigureAwait(false);
+            fromTransactionId, toTransactionId, cancellationToken).ConfigureAwait(false);
         _logger.LogInformation(
             "Finished handling '{Count}' road changes.", changesRoadsCount);
+
+        var changesAccessAddressesCount = await ImportAccessAddressChanges(
+            fromTransactionId, toTransactionId, cancellationToken).ConfigureAwait(false);
+        _logger.LogInformation(
+            "Finished handling '{Count}' access address changes.", changesAccessAddressesCount);
     }
 
     private async Task<int> ImportPostCodeChanges(
@@ -223,6 +228,174 @@ on {nameof(postCodeId)}: '{postCodeId}'");
             {
                 throw new InvalidOperationException(
                     "No valid handling of post code change.");
+            }
+
+            count++;
+        }
+
+        return count;
+    }
+
+    private async Task<int> ImportAccessAddressChanges(
+        ulong fromTransactionId,
+        ulong toTransactionId,
+        CancellationToken cancellationToken)
+    {
+        var addressProjection = _eventStore.Projections.Get<AddressProjection>();
+
+        var accessAddressChangesAsyncEnumerable = _dawaClient.GetChangesAccessAddressAsync(
+            fromTransactionId, toTransactionId, cancellationToken).ConfigureAwait(false);
+
+        // Important to do this outside since they're expensive computations.
+        var existingRoadIds = addressProjection.GetRoadIds();
+        var existingPostCodes = addressProjection.GetPostCodeIds();
+
+        var count = 0;
+        await foreach (var change in accessAddressChangesAsyncEnumerable)
+        {
+            if (change.Operation == DawaEntityChangeOperation.Insert)
+            {
+                var accessAddressAR = new AccessAddressAR();
+                if (!addressProjection.PostCodeNumberToId.TryGetValue(
+                        change.Data.PostDistrictCode, out var postCodeId))
+                {
+                    _logger.LogWarning(
+                        @"Could not find id using official
+post district code: '{PostDistrictCode}'.",
+                        change.Data.PostDistrictCode);
+                    continue;
+                }
+
+                if (!addressProjection.RoadOfficialIdIdToId.TryGetValue(
+                        change.Data.RoadId.ToString(), out var roadId))
+                {
+                    _logger.LogWarning(
+                        "Could not find roadId using official roadId code: '{RoadId}'.",
+                        change.Data.RoadId);
+                    continue;
+                }
+
+                var createResult = accessAddressAR.Create(
+                    id: Guid.NewGuid(),
+                    officialId: change.Data.Id.ToString(),
+                    created: change.Data.Created,
+                    updated: change.Data.Updated,
+                    municipalCode: change.Data.MunicipalCode,
+                    status: DawaStatusMapper.MapAccessAddressStatus(change.Data.Status),
+                    roadCode: change.Data.RoadCode,
+                    houseNumber: change.Data.HouseNumber,
+                    postCodeId: postCodeId,
+                    eastCoordinate: change.Data.EastCoordinate,
+                    northCoordinate: change.Data.NorthCoordinate,
+                    locationUpdated: change.Data.LocationUpdated,
+                    supplementaryTownName: change.Data.SupplementaryTownName,
+                    plotId: change.Data.PlotId,
+                    roadId: roadId,
+                    existingRoadIds: existingRoadIds,
+                    existingPostCodeIds: existingPostCodes);
+
+                if (createResult.IsSuccess)
+                {
+                    _eventStore.Aggregates.Store(accessAddressAR);
+                }
+                else
+                {
+                    throw new InvalidOperationException(
+                        createResult.Errors.FirstOrDefault()?.Message);
+                }
+            }
+            else if (change.Operation == DawaEntityChangeOperation.Update)
+            {
+                if (!addressProjection.AccessAddressOfficialIdToId
+                    .TryGetValue(change.Data.Id.ToString(), out var accessAddressId))
+                {
+                    throw new InvalidOperationException(
+                        $"Could not lookup access address on id '{change.Data.Id}'.");
+                }
+
+                var accessAddressAR = _eventStore.Aggregates
+                    .Load<AccessAddressAR>(accessAddressId);
+                if (accessAddressAR is null)
+                {
+                    throw new InvalidOperationException(
+                        @$"Could not load {nameof(AccessAddressAR)}
+ on id '{accessAddressId}'.");
+                }
+
+                if (!addressProjection.PostCodeNumberToId.TryGetValue(
+                        change.Data.PostDistrictCode, out var postCodeId))
+                {
+                    _logger.LogWarning(
+                        @"Could not find id using official
+post district code: '{PostDistrictCode}'.",
+                        change.Data.PostDistrictCode);
+                    continue;
+                }
+
+                if (!addressProjection.RoadOfficialIdIdToId.TryGetValue(
+                        change.Data.RoadId.ToString(), out var roadId))
+                {
+                    _logger.LogWarning(
+                        "Could not find roadId using official roadId code: '{RoadId}'.",
+                        change.Data.RoadId);
+                    continue;
+                }
+
+                var updateResult = accessAddressAR.Update(
+                    officialId: change.Data.Id.ToString(),
+                    updated: change.Data.Updated,
+                    municipalCode: change.Data.MunicipalCode,
+                    status: DawaStatusMapper.MapAccessAddressStatus(change.Data.Status),
+                    roadCode: change.Data.RoadCode,
+                    houseNumber: change.Data.HouseNumber,
+                    postCodeId: postCodeId,
+                    eastCoordinate: change.Data.EastCoordinate,
+                    northCoordinate: change.Data.NorthCoordinate,
+                    locationUpdated: change.Data.LocationUpdated,
+                    supplementaryTownName: change.Data.SupplementaryTownName,
+                    plotId: change.Data.PlotId,
+                    roadId: roadId,
+                    existingRoadIds: existingRoadIds,
+                    existingPostCodeIds: existingPostCodes);
+
+                if (updateResult.IsSuccess)
+                {
+                    _eventStore.Aggregates.Store(accessAddressAR);
+                }
+                else
+                {
+                    throw new InvalidOperationException(
+                        updateResult.Errors.FirstOrDefault()?.Message);
+                }
+            }
+            else if (change.Operation == DawaEntityChangeOperation.Delete)
+            {
+                if (!addressProjection.AccessAddressOfficialIdToId
+                    .TryGetValue(change.Data.Id.ToString(), out var accessAddressId))
+                {
+                    throw new InvalidOperationException(
+                        $"Could not lookup access address on id '{change.Data.Id}'.");
+                }
+
+                var accessAddressAR = _eventStore.Aggregates
+                    .Load<AccessAddressAR>(accessAddressId);
+                if (accessAddressAR is null)
+                {
+                    throw new InvalidOperationException(
+                        @$"Could not load {nameof(AccessAddressAR)}
+ on id '{accessAddressId}'.");
+                }
+
+                var deleteResult = accessAddressAR.Delete();
+                if (deleteResult.IsSuccess)
+                {
+                    _eventStore.Aggregates.Store(accessAddressAR);
+                }
+                else
+                {
+                    throw new InvalidOperationException(
+                        deleteResult.Errors.First().Message);
+                }
             }
 
             count++;
