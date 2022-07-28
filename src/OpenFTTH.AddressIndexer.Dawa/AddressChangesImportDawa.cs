@@ -256,53 +256,62 @@ on {nameof(postCodeId)}: '{postCodeId}'");
         {
             if (change.Operation == DawaEntityChangeOperation.Insert)
             {
-                var accessAddressAR = new AccessAddressAR();
-                if (!addressProjection.PostCodeNumberToId.TryGetValue(
-                        change.Data.PostDistrictCode, out var postCodeId))
+                if (!addressProjection.AccessAddressOfficialIdToId.ContainsKey(change.Data.Id.ToString()))
                 {
-                    _logger.LogWarning(
-                        @"Could not find id using official
+                    var accessAddressAR = new AccessAddressAR();
+                    if (!addressProjection.PostCodeNumberToId.TryGetValue(
+                            change.Data.PostDistrictCode, out var postCodeId))
+                    {
+                        _logger.LogWarning(
+                            @"Could not find id using official
 post district code: '{PostDistrictCode}'.",
-                        change.Data.PostDistrictCode);
-                    continue;
-                }
+                            change.Data.PostDistrictCode);
+                        continue;
+                    }
 
-                if (!addressProjection.RoadOfficialIdIdToId.TryGetValue(
-                        change.Data.RoadId.ToString(), out var roadId))
-                {
-                    _logger.LogWarning(
-                        "Could not find roadId using official roadId code: '{RoadId}'.",
-                        change.Data.RoadId);
-                    continue;
-                }
+                    if (!addressProjection.RoadOfficialIdIdToId.TryGetValue(
+                            change.Data.RoadId.ToString(), out var roadId))
+                    {
+                        _logger.LogWarning(
+                            "Could not find roadId using official roadId code: '{RoadId}'.",
+                            change.Data.RoadId);
+                        continue;
+                    }
 
-                var createResult = accessAddressAR.Create(
-                    id: Guid.NewGuid(),
-                    officialId: change.Data.Id.ToString(),
-                    created: change.Data.Created,
-                    updated: change.Data.Updated,
-                    municipalCode: change.Data.MunicipalCode,
-                    status: DawaStatusMapper.MapAccessAddressStatus(change.Data.Status),
-                    roadCode: change.Data.RoadCode,
-                    houseNumber: change.Data.HouseNumber,
-                    postCodeId: postCodeId,
-                    eastCoordinate: change.Data.EastCoordinate,
-                    northCoordinate: change.Data.NorthCoordinate,
-                    locationUpdated: change.Data.LocationUpdated,
-                    supplementaryTownName: change.Data.SupplementaryTownName,
-                    plotId: change.Data.PlotId,
-                    roadId: roadId,
-                    existingRoadIds: existingRoadIds,
-                    existingPostCodeIds: existingPostCodes);
+                    var createResult = accessAddressAR.Create(
+                        id: Guid.NewGuid(),
+                        officialId: change.Data.Id.ToString(),
+                        created: change.Data.Created,
+                        updated: change.Data.Updated,
+                        municipalCode: change.Data.MunicipalCode,
+                        status: DawaStatusMapper.MapAccessAddressStatus(change.Data.Status),
+                        roadCode: change.Data.RoadCode,
+                        houseNumber: change.Data.HouseNumber,
+                        postCodeId: postCodeId,
+                        eastCoordinate: change.Data.EastCoordinate,
+                        northCoordinate: change.Data.NorthCoordinate,
+                        locationUpdated: change.Data.LocationUpdated,
+                        supplementaryTownName: change.Data.SupplementaryTownName,
+                        plotId: change.Data.PlotId,
+                        roadId: roadId,
+                        existingRoadIds: existingRoadIds,
+                        existingPostCodeIds: existingPostCodes);
 
-                if (createResult.IsSuccess)
-                {
-                    _eventStore.Aggregates.Store(accessAddressAR);
+                    if (createResult.IsSuccess)
+                    {
+                        _eventStore.Aggregates.Store(accessAddressAR);
+                    }
+                    else
+                    {
+                        throw new InvalidOperationException(
+                            createResult.Errors.FirstOrDefault()?.Message);
+                    }
                 }
                 else
                 {
-                    throw new InvalidOperationException(
-                        createResult.Errors.FirstOrDefault()?.Message);
+                    _logger.LogInformation(
+                        "Acess address with internal id: '{Id}' has already been created.",
+                        change.Data.Id);
                 }
             }
             else if (change.Operation == DawaEntityChangeOperation.Update)
