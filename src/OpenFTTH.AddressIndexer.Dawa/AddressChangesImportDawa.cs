@@ -165,6 +165,15 @@ on {nameof(postCodeId)}: '{postCodeId}'");
         {
             if (change.Operation == DawaEntityChangeOperation.Insert)
             {
+                if (addressProjection.RoadOfficialIdIdToId
+                    .ContainsKey(change.Data.Id.ToString()))
+                {
+                    _logger.LogWarning(
+                        @"Road with official id '{OfficialId}' has already been created.",
+                        change.Data.Id);
+                    continue;
+                }
+
                 var roadAR = new RoadAR();
 
                 var createResult = roadAR.Create(
