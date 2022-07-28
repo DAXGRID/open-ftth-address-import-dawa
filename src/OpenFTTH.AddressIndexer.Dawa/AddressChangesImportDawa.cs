@@ -69,6 +69,15 @@ internal sealed class AddressChangesImportDawa : IAddressChangesImport
         {
             if (postCodeChange.Operation == DawaEntityChangeOperation.Insert)
             {
+                if (addressProjection.PostCodeNumberToId
+                    .ContainsKey(postCodeChange.Data.Number))
+                {
+                    _logger.LogWarning(
+                        "Post code with number '{Number}' has already been created.",
+                        postCodeChange.Data.Number);
+                    continue;
+                }
+
                 var postCodeAR = new PostCodeAR();
                 var createResult = postCodeAR.Create(
                     id: Guid.NewGuid(),
