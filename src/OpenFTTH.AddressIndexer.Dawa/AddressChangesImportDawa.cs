@@ -44,7 +44,14 @@ internal sealed class AddressChangesImportDawa : IAddressChangesImport
         var changesAccessAddressesCount = await ImportAccessAddressChanges(
             fromTransactionId, toTransactionId, cancellationToken).ConfigureAwait(false);
         _logger.LogInformation(
-            "Finished handling '{Count}' access address changes.", changesAccessAddressesCount);
+            "Finished handling '{Count}' access address changes.",
+            changesAccessAddressesCount);
+
+        var changesUnitAddressCount = await ImportUnitAddressChanges(
+            fromTransactionId, toTransactionId, cancellationToken).ConfigureAwait(false);
+        _logger.LogInformation(
+            "Finished handling '{Count}' unit address changes.",
+            changesUnitAddressCount);
     }
 
     private async Task<int> ImportPostCodeChanges(
@@ -310,7 +317,7 @@ post district code: '{PostDistrictCode}'.",
                 else
                 {
                     _logger.LogInformation(
-                        "Acess address with internal id: '{Id}' has already been created.",
+                        "Access address with internal id: '{Id}' has already been created.",
                         change.Data.Id);
                 }
             }
@@ -406,6 +413,110 @@ post district code: '{PostDistrictCode}'.",
                     throw new InvalidOperationException(
                         deleteResult.Errors.First().Message);
                 }
+            }
+
+            count++;
+        }
+
+        return count;
+    }
+
+    private async Task<int> ImportUnitAddressChanges(
+        ulong fromTransactionId,
+        ulong toTransactionId,
+        CancellationToken cancellationToken)
+    {
+        var addressProjection = _eventStore.Projections.Get<AddressProjection>();
+
+        // We use the access address ids out here since the operation might be expensive.
+        var existingAccessAddressIds = addressProjection.AccessAddressIds;
+
+        var unitAddressChangesAsyncEnumerable = _dawaClient.GetChangesUnitAddressAsync(
+            fromTransactionId, toTransactionId, cancellationToken).ConfigureAwait(false);
+
+        var count = 0;
+        await foreach (var change in unitAddressChangesAsyncEnumerable)
+        {
+            if (change.Operation == DawaEntityChangeOperation.Insert)
+            {
+                if (addressProjection.UnitAddressOfficialIdToId
+                    .ContainsKey(change.Data.Id.ToString()))
+                {
+                    _logger.LogWarning(
+                        @"Cannot create unit address
+with offical id '{OfficialId}' since it already has been created.", change.Data.Id);
+                    continue;
+                }
+
+                if (!addressProjection.AccessAddressOfficialIdToId.TryGetValue(
+                        change.Data.AccessAddressId.ToString(),
+                        out var accessAddressId))
+                {
+                    _logger.LogWarning(
+                        @"Could not find accessAddress using
+official accessAddressId: '{AccessAddressId}'.",
+                        change.Data.AccessAddressId);
+                    continue;
+                }
+
+                var unitAddressAR = new UnitAddressAR();
+
+                var createResult = unitAddressAR.Create(
+                    id: Guid.NewGuid(),
+                    officialId: change.Data.Id.ToString(),
+                    accessAddressId: accessAddressId,
+                    status: DawaStatusMapper.MapUnitAddressStatus(change.Data.Status),
+                    floorName: change.Data.FloorName,
+                    suitName: change.Data.SuitName,
+                    created: change.Data.Created,
+                    updated: change.Data.Updated,
+                    existingAccessAddressIds: existingAccessAddressIds);
+
+                if (createResult.IsSuccess)
+                {
+                    _eventStore.Aggregates.Store(unitAddressAR);
+                }
+                else
+                {
+                    throw new InvalidOperationException(
+                        createResult.Errors.FirstOrDefault()?.Message);
+                }
+            }
+            else if (change.Operation == DawaEntityChangeOperation.Update)
+            {
+
+            }
+            else if (change.Operation == DawaEntityChangeOperation.Delete)
+            {
+                if (addressProjection.UnitAddressOfficialIdToId
+                    .TryGetValue(change.Data.Id.ToString(), out var unitAddressId))
+                {
+                    var unitAddressAR = _eventStore.Aggregates
+                        .Load<UnitAddressAR>(unitAddressId);
+
+                    var deleteResult = unitAddressAR.Delete();
+                    if (deleteResult.IsSuccess)
+                    {
+                        _eventStore.Aggregates.Store(unitAddressAR);
+                    }
+                    else
+                    {
+                        throw new InvalidOperationException(
+                            deleteResult.Errors.First().Message);
+                    }
+                }
+                else
+                {
+                    _logger.LogWarning(
+                        @"Could not find unit address
+using official id '{OfficalId}'. Deletion can therefore not happen.", change.Data.Id);
+                    continue;
+                }
+            }
+            else
+            {
+                throw new InvalidOperationException(
+                    "No valid handling of unit address DAWA change.");
             }
 
             count++;
