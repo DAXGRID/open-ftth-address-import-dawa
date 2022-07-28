@@ -133,7 +133,7 @@ public class ImportStarterTest
         var transactionStore = A.Fake<ITransactionStore>();
 
         A.CallTo(() => transactionStore.GetLastCompletedTransactionId(default))
-            .Returns<ulong?>(transactionId - 100000);
+            .Returns<ulong?>(transactionId - 20000);
 
         A.CallTo(() => transactionStore.GetNewestTransactionId(default))
             .Returns<ulong>(transactionId);

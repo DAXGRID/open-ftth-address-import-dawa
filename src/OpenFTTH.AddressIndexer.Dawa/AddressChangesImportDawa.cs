@@ -185,6 +185,7 @@ on {nameof(postCodeId)}: '{postCodeId}'");
 
                 var updateResult = roadAR.Update(
                     name: change.Data.Name,
+                    officialId: change.Data.Id.ToString(),
                     status: DawaStatusMapper.MapRoadStatus(change.Data.Status));
 
                 if (updateResult.IsSuccess)

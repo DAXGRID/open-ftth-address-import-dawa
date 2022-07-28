@@ -19,6 +19,6 @@ internal class InMemoryTransactionStore : ITransactionStore
     // We just use a specific transaction id to simplify it.
     public Task<ulong> GetNewestTransactionId(CancellationToken cancellationToken = default)
     {
-        return Task.FromResult<ulong>(3805212);
+        return Task.FromResult<ulong>(3905212UL - 20000);
     }
 }
