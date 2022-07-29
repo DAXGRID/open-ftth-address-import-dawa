@@ -121,7 +121,7 @@ internal sealed class AddressChangesImportDawa : IAddressChangesImport
                         if (error.Code == PostCodeErrorCodes.NO_CHANGES)
                         {
                             // No changes is okay, we just log it.
-                            _logger.LogInformation("{ErrorMessage}", error.Message);
+                            _logger.LogDebug("{ErrorMessage}", error.Message);
                             continue;
                         }
                         else
@@ -253,8 +253,18 @@ on {nameof(postCodeId)}: '{postCodeId}'");
                 else
                 {
                     // There will always only be a single error.
-                    throw new InvalidOperationException(
-                       updateResult.Errors.First().Message);
+                    var error = (RoadError)updateResult.Errors.First();
+                    if (error.Code == RoadErrorCode.NO_CHANGES)
+                    {
+                        // No changes is okay, we just log it.
+                        _logger.LogDebug("{ErrorMessage}", error.Message);
+                        continue;
+                    }
+                    else
+                    {
+                        throw new InvalidOperationException(
+                           error.Message);
+                    }
                 }
             }
             else if (change.Operation == DawaEntityChangeOperation.Delete)
