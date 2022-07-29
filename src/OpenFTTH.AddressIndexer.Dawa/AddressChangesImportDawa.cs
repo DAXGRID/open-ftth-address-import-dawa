@@ -220,8 +220,9 @@ on {nameof(postCodeId)}: '{postCodeId}'");
                 }
                 else
                 {
+                    // There will always only be a single error
                     throw new InvalidOperationException(
-                        createResult.Errors.FirstOrDefault()?.Message);
+                        createResult.Errors.First().Message);
                 }
             }
             else if (change.Operation == DawaEntityChangeOperation.Update)
@@ -251,6 +252,7 @@ on {nameof(postCodeId)}: '{postCodeId}'");
                 }
                 else
                 {
+                    // There will always only be a single error.
                     throw new InvalidOperationException(
                        updateResult.Errors.First().Message);
                 }
