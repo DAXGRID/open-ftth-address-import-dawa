@@ -502,7 +502,47 @@ official accessAddressId: '{AccessAddressId}'.",
             }
             else if (change.Operation == DawaEntityChangeOperation.Update)
             {
+                if (!addressProjection.UnitAddressOfficialIdToId
+                    .TryGetValue(change.Data.Id.ToString(), out var unitAddressId))
+                {
+                    _logger.LogWarning(
+                        @"Could not find internal unit address id
+using official id '{OfficialId}'.",
+                        change.Data.Id);
+                    continue;
+                }
 
+                if (!addressProjection.AccessAddressOfficialIdToId.TryGetValue(
+                        change.Data.AccessAddressId.ToString(),
+                        out var accessAddressId))
+                {
+                    _logger.LogWarning(
+                        @"Could not find accessAddress using
+official accessAddressId: '{AccessAddressId}'.",
+                        change.Data.AccessAddressId);
+                    continue;
+                }
+
+                var unitAddressAR = _eventStore.Aggregates.Load<UnitAddressAR>(unitAddressId);
+
+                var createResult = unitAddressAR.Update(
+                    officialId: change.Data.Id.ToString(),
+                    accessAddressId: accessAddressId,
+                    status: DawaStatusMapper.MapUnitAddressStatus(change.Data.Status),
+                    floorName: change.Data.FloorName,
+                    suitName: change.Data.SuitName,
+                    updated: change.Data.Updated,
+                    existingAccessAddressIds: existingAccessAddressIds);
+
+                if (createResult.IsSuccess)
+                {
+                    _eventStore.Aggregates.Store(unitAddressAR);
+                }
+                else
+                {
+                    throw new InvalidOperationException(
+                        createResult.Errors.FirstOrDefault()?.Message);
+                }
             }
             else if (change.Operation == DawaEntityChangeOperation.Delete)
             {
