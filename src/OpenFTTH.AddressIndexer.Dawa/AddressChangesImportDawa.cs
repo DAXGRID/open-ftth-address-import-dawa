@@ -90,8 +90,19 @@ internal sealed class AddressChangesImportDawa : IAddressChangesImport
                 }
                 else
                 {
-                    throw new InvalidOperationException(
-                        createResult.Errors.FirstOrDefault()?.Message);
+                    // There will always only be one error.
+                    var error = (PostCodeError)createResult.Errors.First();
+
+                    if (error.Code == PostCodeErrorCodes.NO_CHANGES)
+                    {
+                        // No changes is okay, we just log it.
+                        _logger.LogInformation(error.Message);
+                        continue;
+                    }
+                    else
+                    {
+                        throw new InvalidOperationException(error.Message);
+                    }
                 }
             }
             else if (postCodeChange.Operation == DawaEntityChangeOperation.Update)
