@@ -96,7 +96,7 @@ internal sealed class AddressChangesImportDawa : IAddressChangesImport
                     if (error.Code == PostCodeErrorCodes.NO_CHANGES)
                     {
                         // No changes is okay, we just log it.
-                        _logger.LogInformation(error.Message);
+                        _logger.LogInformation("{ErrorMessage}", error.Message);
                         continue;
                     }
                     else
