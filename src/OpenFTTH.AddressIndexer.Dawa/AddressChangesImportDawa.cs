@@ -580,7 +580,7 @@ official accessAddressId: '{AccessAddressId}'.",
 
                 var unitAddressAR = _eventStore.Aggregates.Load<UnitAddressAR>(unitAddressId);
 
-                var createResult = unitAddressAR.Update(
+                var updateResult = unitAddressAR.Update(
                     officialId: change.Data.Id.ToString(),
                     accessAddressId: accessAddressId,
                     status: DawaStatusMapper.MapUnitAddressStatus(change.Data.Status),
@@ -589,14 +589,25 @@ official accessAddressId: '{AccessAddressId}'.",
                     updated: change.Data.Updated,
                     existingAccessAddressIds: existingAccessAddressIds);
 
-                if (createResult.IsSuccess)
+                if (updateResult.IsSuccess)
                 {
                     _eventStore.Aggregates.Store(unitAddressAR);
                 }
                 else
                 {
-                    throw new InvalidOperationException(
-                        createResult.Errors.FirstOrDefault()?.Message);
+                    // There will always only be a single error.
+                    var error = (UnitAddressError)updateResult.Errors.First();
+                    if (error.Code == UnitAddressErrorCodes.NO_CHANGES)
+                    {
+                        // No changes is okay, we just log it.
+                        _logger.LogDebug("{ErrorMessage}", error.Message);
+                        continue;
+                    }
+                    else
+                    {
+                        throw new InvalidOperationException(
+                            updateResult.Errors.FirstOrDefault()?.Message);
+                    }
                 }
             }
             else if (change.Operation == DawaEntityChangeOperation.Delete)
