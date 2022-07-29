@@ -160,7 +160,16 @@ on {nameof(postCodeId)}: '{postCodeId}'");
                     {
                         // There will always only be one error.
                         var error = (PostCodeError)deleteResult.Errors.First();
-                        throw new InvalidOperationException(error.Message);
+                        if (error.Code == PostCodeErrorCodes.CANNOT_DELETE_ALREADY_DELETED)
+                        {
+                            // No changes is okay, we just log it.
+                            _logger.LogDebug("{ErrorMessage}", error.Message);
+                            continue;
+                        }
+                        else
+                        {
+                            throw new InvalidOperationException(error.Message);
+                        }
                     }
                 }
                 else
@@ -262,8 +271,7 @@ on {nameof(postCodeId)}: '{postCodeId}'");
                     }
                     else
                     {
-                        throw new InvalidOperationException(
-                           error.Message);
+                        throw new InvalidOperationException(error.Message);
                     }
                 }
             }
@@ -290,8 +298,18 @@ on {nameof(postCodeId)}: '{postCodeId}'");
                 }
                 else
                 {
-                    throw new InvalidOperationException(
-                        deleteResult.Errors.First().Message);
+                    // There will always only be a single error.
+                    var error = (RoadError)deleteResult.Errors.First();
+                    if (error.Code == RoadErrorCode.CANNOT_DELETE_ALREADY_DELETED)
+                    {
+                        // No changes is okay, we just log it.
+                        _logger.LogDebug("{ErrorMessage}", error.Message);
+                        continue;
+                    }
+                    else
+                    {
+                        throw new InvalidOperationException(error.Message);
+                    }
                 }
             }
             else
@@ -451,8 +469,7 @@ post district code: '{PostDistrictCode}'.",
                     }
                     else
                     {
-                        throw new InvalidOperationException(
-                            updateResult.Errors.FirstOrDefault()?.Message);
+                        throw new InvalidOperationException(error.Message);
                     }
                 }
             }
@@ -481,8 +498,18 @@ post district code: '{PostDistrictCode}'.",
                 }
                 else
                 {
-                    throw new InvalidOperationException(
-                        deleteResult.Errors.First().Message);
+                    // There will always only be a single error.
+                    var error = (AccessAddressError)deleteResult.Errors.First();
+                    if (error.Code == AccessAddressErrorCodes.CANNOT_DELETE_ALREADY_DELETED)
+                    {
+                        // No changes is okay, we just log it.
+                        _logger.LogDebug("{ErrorMessage}", error.Message);
+                        continue;
+                    }
+                    else
+                    {
+                        throw new InvalidOperationException(error.Message);
+                    }
                 }
             }
 
@@ -603,8 +630,7 @@ official accessAddressId: '{AccessAddressId}'.",
                     }
                     else
                     {
-                        throw new InvalidOperationException(
-                            updateResult.Errors.FirstOrDefault()?.Message);
+                        throw new InvalidOperationException(error.Message);
                     }
                 }
             }
@@ -623,8 +649,17 @@ official accessAddressId: '{AccessAddressId}'.",
                     }
                     else
                     {
-                        throw new InvalidOperationException(
-                            deleteResult.Errors.First().Message);
+                        var error = (UnitAddressError)deleteResult.Errors.First();
+                        if (error.Code == UnitAddressErrorCodes.CANNOT_DELETE_ALREADY_DELETED)
+                        {
+                            // No changes is okay, we just log it.
+                            _logger.LogWarning("{ErrorMessage}", error.Message);
+                            continue;
+                        }
+                        else
+                        {
+                            throw new InvalidOperationException(error.Message);
+                        }
                     }
                 }
                 else
