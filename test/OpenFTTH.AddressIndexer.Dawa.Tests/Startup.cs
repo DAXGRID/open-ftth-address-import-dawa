@@ -26,9 +26,9 @@ public static class Startup
         });
 
         services.AddHttpClient();
-        services.AddSingleton<ImportStarter>();
-        services.AddSingleton<IAddressImport, AddressImportDawa>();
-        services.AddSingleton<ITransactionStore, PostgresTransactionStore>();
+        services.AddSingleton<IAddressFullImport, AddressFullImportDawa>();
+        services.AddSingleton<IAddressChangesImport, AddressChangesImportDawa>();
+        services.AddSingleton<ITransactionStore, InMemoryTransactionStore>();
         services.AddSingleton<IEventStore, InMemEventStore>();
         {
             var businessAssemblies = new Assembly[] {

@@ -2,8 +2,20 @@ namespace OpenFTTH.AddressIndexer.Dawa;
 
 internal class PostgresTransactionStore : ITransactionStore
 {
-    public async Task<ulong?> GetLastId()
+    public Task<ulong?> GetLastCompletedTransactionId(
+        CancellationToken cancellationToken = default)
     {
-        return await Task.FromResult<ulong?>(null).ConfigureAwait(false);
+        throw new NotImplementedException();
+    }
+
+    public Task<ulong> GetNewestTransactionId(
+        CancellationToken cancellationToken = default)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task StoreTransactionId(ulong transactionId)
+    {
+        throw new NotImplementedException();
     }
 }

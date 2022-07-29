@@ -60,7 +60,8 @@ public sealed class Program
         return new ServiceCollection()
             .AddSingleton<ImportStarter>()
             .AddSingleton<Settings>(settings)
-            .AddSingleton<IAddressImport, AddressImportDawa>()
+            .AddSingleton<IAddressFullImport, AddressFullImportDawa>()
+            .AddSingleton<IAddressChangesImport, AddressChangesImportDawa>()
             .AddSingleton<ITransactionStore, PostgresTransactionStore>()
             .AddSingleton<IEventStore>(
                 e =>
