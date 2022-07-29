@@ -443,8 +443,19 @@ post district code: '{PostDistrictCode}'.",
                 }
                 else
                 {
-                    throw new InvalidOperationException(
-                        updateResult.Errors.FirstOrDefault()?.Message);
+                    // There will always only be a single error.
+                    var error = (AccessAddressError)updateResult.Errors.First();
+                    if (error.Code == AccessAddressErrorCodes.NO_CHANGES)
+                    {
+                        // No changes is okay, we just log it.
+                        _logger.LogDebug("{ErrorMessage}", error.Message);
+                        continue;
+                    }
+                    else
+                    {
+                        throw new InvalidOperationException(
+                            updateResult.Errors.FirstOrDefault()?.Message);
+                    }
                 }
             }
             else if (change.Operation == DawaEntityChangeOperation.Delete)
