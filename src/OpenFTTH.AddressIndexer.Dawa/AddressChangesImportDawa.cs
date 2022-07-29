@@ -92,17 +92,7 @@ internal sealed class AddressChangesImportDawa : IAddressChangesImport
                 {
                     // There will always only be one error.
                     var error = (PostCodeError)createResult.Errors.First();
-
-                    if (error.Code == PostCodeErrorCodes.NO_CHANGES)
-                    {
-                        // No changes is okay, we just log it.
-                        _logger.LogInformation("{ErrorMessage}", error.Message);
-                        continue;
-                    }
-                    else
-                    {
-                        throw new InvalidOperationException(error.Message);
-                    }
+                    throw new InvalidOperationException(error.Message);
                 }
             }
             else if (postCodeChange.Operation == DawaEntityChangeOperation.Update)
@@ -118,7 +108,27 @@ internal sealed class AddressChangesImportDawa : IAddressChangesImport
                 var postCodeAR = _eventStore.Aggregates.Load<PostCodeAR>(postCodeId);
                 if (postCodeAR is not null)
                 {
-                    postCodeAR.Update(postCodeChange.Data.Name);
+                    var updateResult = postCodeAR.Update(postCodeChange.Data.Name);
+
+                    if (updateResult.IsSuccess)
+                    {
+                        _eventStore.Aggregates.Store(postCodeAR);
+                    }
+                    else
+                    {
+                        // There will always only be one error.
+                        var error = (PostCodeError)updateResult.Errors.First();
+                        if (error.Code == PostCodeErrorCodes.NO_CHANGES)
+                        {
+                            // No changes is okay, we just log it.
+                            _logger.LogInformation("{ErrorMessage}", error.Message);
+                            continue;
+                        }
+                        else
+                        {
+                            throw new InvalidOperationException(error.Message);
+                        }
+                    }
                 }
                 else
                 {
@@ -140,7 +150,18 @@ on {nameof(postCodeId)}: '{postCodeId}'");
                 var postCodeAR = _eventStore.Aggregates.Load<PostCodeAR>(postCodeId);
                 if (postCodeAR is not null)
                 {
-                    postCodeAR.Delete();
+                    var deleteResult = postCodeAR.Delete();
+
+                    if (deleteResult.IsSuccess)
+                    {
+                        _eventStore.Aggregates.Store(postCodeAR);
+                    }
+                    else
+                    {
+                        // There will always only be one error.
+                        var error = (PostCodeError)deleteResult.Errors.First();
+                        throw new InvalidOperationException(error.Message);
+                    }
                 }
                 else
                 {
