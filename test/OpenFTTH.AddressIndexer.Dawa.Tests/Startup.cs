@@ -28,7 +28,6 @@ public static class Startup
         services.AddHttpClient();
         services.AddSingleton<IAddressFullImport, AddressFullImportDawa>();
         services.AddSingleton<IAddressChangesImport, AddressChangesImportDawa>();
-        services.AddSingleton<ITransactionStore, InMemoryTransactionStore>();
         services.AddSingleton<IEventStore, InMemEventStore>();
         {
             var businessAssemblies = new Assembly[] {
