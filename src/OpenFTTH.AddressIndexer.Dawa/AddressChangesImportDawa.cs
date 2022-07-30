@@ -281,7 +281,8 @@ on {nameof(postCodeId)}: '{postCodeId}'");
                     .TryGetValue(change.Data.Id.ToString(), out var roadId))
                 {
                     throw new InvalidOperationException(
-                        $"Could not lookup road on id '{change.Data.Id}'.");
+                        @$"Could not lookup road on id '{change.Data.Id}'
+for deletion.");
                 }
 
                 var roadAR = _eventStore.Aggregates.Load<RoadAR>(roadId);
