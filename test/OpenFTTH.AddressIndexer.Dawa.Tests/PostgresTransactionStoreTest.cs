@@ -24,6 +24,23 @@ public class PostgresTransactionStoreTest : IClassFixture<DatabaseFixture>
             .Newest()
             .ConfigureAwait(true);
 
+        // Store transactions (multiple to make sure we get latest)
+        await transactionStore
+            .Store(newestTransactionId - 50000)
+            .ConfigureAwait(true);
+
+        await transactionStore
+            .Store(newestTransactionId - 40000)
+            .ConfigureAwait(true);
+
+        await transactionStore
+            .Store(newestTransactionId - 20000)
+            .ConfigureAwait(true);
+
+        await transactionStore
+            .Store(newestTransactionId - 10000)
+            .ConfigureAwait(true);
+
         await transactionStore
             .Store(newestTransactionId)
             .ConfigureAwait(true);
