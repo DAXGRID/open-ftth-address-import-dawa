@@ -26,15 +26,14 @@ public static class Startup
         });
 
         services.AddHttpClient();
+        services.AddSingleton(new Settings(DatabaseFixture.TestDbConnectionString));
         services.AddSingleton<IAddressFullImport, AddressFullImportDawa>();
         services.AddSingleton<IAddressChangesImport, AddressChangesImportDawa>();
         services.AddSingleton<IEventStore, InMemEventStore>();
+        services.AddSingleton<ITransactionStore, PostgresTransactionStore>();
+        services.AddProjections(new Assembly[]
         {
-            var businessAssemblies = new Assembly[] {
-                AppDomain.CurrentDomain.Load("OpenFTTH.Core.Address"),
-            };
-
-            services.AddProjections(businessAssemblies);
-        }
+            AppDomain.CurrentDomain.Load("OpenFTTH.Core.Address")
+        });
     }
 }
