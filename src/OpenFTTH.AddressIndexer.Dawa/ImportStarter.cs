@@ -52,8 +52,10 @@ public class ImportStarter
             _eventStore.DehydrateProjections();
 
             _logger.LogInformation(
-                "Getting changes from {LastCompletedTransactionId} to {NewestTransactionId}.",
-                lastCompletedTransactionId, newestTransactionId);
+                @"Getting changes from
+{LastCompletedTransactionId} to {NewestTransactionId}.",
+                lastCompletedTransactionId,
+                newestTransactionId);
 
             await _addressChangesImport
                 .Start(lastCompletedTransactionId.Value,
@@ -62,7 +64,8 @@ public class ImportStarter
                 .ConfigureAwait(false);
         }
 
-        _logger.LogInformation("Storing transaction id: '{TransactionId}'.", newestTransactionId);
+        _logger.LogInformation(
+            "Storing transaction id: '{TransactionId}'.", newestTransactionId);
         var stored = await _transactionStore
             .Store(newestTransactionId)
             .ConfigureAwait(false);
