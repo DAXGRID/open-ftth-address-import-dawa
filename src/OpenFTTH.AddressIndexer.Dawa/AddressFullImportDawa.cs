@@ -65,9 +65,20 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
             .GetAllRoadsAsync(transactionId, cancellationToken)
             .ConfigureAwait(false);
 
+        var addressProjection = _eventStore.Projections.Get<AddressProjection>();
+        var existingRoadOfficialIds = addressProjection.RoadOfficialIdIdToId;
+
         var count = 0;
         await foreach (var dawaRoad in dawaRoadsAsyncEnumerable)
         {
+            if (existingRoadOfficialIds.ContainsKey(dawaRoad.Id.ToString()))
+            {
+                _logger.LogWarning(
+                    "Road with official id: '{OfficialId}' has already been created.",
+                    dawaRoad.Id);
+                continue;
+            }
+
             var roadAR = new RoadAR();
             var create = roadAR.Create(
                 id: Guid.NewGuid(),
@@ -97,9 +108,20 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
             .GetAllPostCodesAsync(transactionId, cancellationToken)
             .ConfigureAwait(false);
 
+        var addressProjection = _eventStore.Projections.Get<AddressProjection>();
+        var existingOfficialPostCodeNumbers = addressProjection.PostCodeNumberToId;
+
         var count = 0;
         await foreach (var dawaPostCode in dawaPostCodesAsyncEnumerable)
         {
+            if (existingOfficialPostCodeNumbers.ContainsKey(dawaPostCode.Number))
+            {
+                _logger.LogWarning(
+                    "Post code with number: '{PostCodeNumber}' has already been created.",
+                    dawaPostCode.Number);
+                continue;
+            }
+
             var postCodeAR = new PostCodeAR();
             var create = postCodeAR.Create(
                 id: Guid.NewGuid(),
@@ -133,10 +155,20 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
         // Important to be computed outside the loop, the computation is expensive.
         var existingRoadIds = addressProjection.GetRoadIds();
         var existingPostCodeIds = addressProjection.GetPostCodeIds();
+        var officialAccessAddressIds = addressProjection.AccessAddressOfficialIdToId;
 
         var count = 0;
         await foreach (var dawaAccessAddress in dawaAccessAddressesAsyncEnumerable)
         {
+            if (officialAccessAddressIds.ContainsKey(dawaAccessAddress.Id.ToString()))
+            {
+                _logger.LogWarning(
+                    @"Access address with official id: '{DawaAccessAddressOfficialId}'
+has already been created.",
+                    dawaAccessAddress.Id);
+                continue;
+            }
+
             var accessAddressAR = new AccessAddressAR();
             if (!addressProjection.PostCodeNumberToId.TryGetValue(
                     dawaAccessAddress.PostDistrictCode, out var postCodeId))
@@ -201,10 +233,20 @@ post district code: '{PostDistrictCode}'.",
 
         // Important to be computed outside the loop, the computation is expensive.
         var existingAccessAddressIds = addressProjection.AccessAddressIds;
+        var unitAddressOfficialIds = addressProjection.UnitAddressOfficialIdToId;
 
         var count = 0;
         await foreach (var dawaUnitAddress in dawaUnitAddresssesAsyncEnumerable)
         {
+            if (unitAddressOfficialIds.ContainsKey(dawaUnitAddress.Id.ToString()))
+            {
+                _logger.LogWarning(
+                    @"Unit address with official id: '{DawaUnitAddressOfficialId}'
+has already been created.",
+                    dawaUnitAddress.Id);
+                continue;
+            }
+
             var unitAddressAR = new UnitAddressAR();
 
             if (!addressProjection.AccessAddressOfficialIdToId.TryGetValue(
