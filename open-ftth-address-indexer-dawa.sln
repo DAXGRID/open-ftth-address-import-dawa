@@ -3,13 +3,13 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.30114.105
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{FAA27210-BBD1-498A-A982-2136396EB5F0}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "test", "test", "{B0F7FBFA-B964-438C-BC10-C3791BC1C9D2}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenFTTH.AddressIndexer.Dawa", "src\OpenFTTH.AddressIndexer.Dawa\OpenFTTH.AddressIndexer.Dawa.csproj", "{6D160A8D-CD33-4DF9-89E7-208E8EFA1B46}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenFTTH.AddressImporter.Dawa.Tests", "test\OpenFTTH.AddressImporter.Dawa.Tests\OpenFTTH.AddressImporter.Dawa.Tests.csproj", "{E528B1DB-3C36-4B44-8647-6C8A0EC0FA65}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "test", "test", "{FE1D8F88-6F86-4024-87A0-7AB624AD16CD}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{18493BF0-2EC9-4EA4-AA3C-4D99E19AA89C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenFTTH.AddressIndexer.Dawa.Tests", "test\OpenFTTH.AddressIndexer.Dawa.Tests\OpenFTTH.AddressIndexer.Dawa.Tests.csproj", "{FA23ECC5-9251-447A-B86B-E3CC2EC6B272}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenFTTH.AddressImporter.Dawa", "src\OpenFTTH.AddressImporter.Dawa\OpenFTTH.AddressImporter.Dawa.csproj", "{B955B90F-E5D5-44D0-B784-6190CF2C5AEA}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -20,17 +20,17 @@ Global
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{6D160A8D-CD33-4DF9-89E7-208E8EFA1B46}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{6D160A8D-CD33-4DF9-89E7-208E8EFA1B46}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{6D160A8D-CD33-4DF9-89E7-208E8EFA1B46}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{6D160A8D-CD33-4DF9-89E7-208E8EFA1B46}.Release|Any CPU.Build.0 = Release|Any CPU
-		{FA23ECC5-9251-447A-B86B-E3CC2EC6B272}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{FA23ECC5-9251-447A-B86B-E3CC2EC6B272}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{FA23ECC5-9251-447A-B86B-E3CC2EC6B272}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{FA23ECC5-9251-447A-B86B-E3CC2EC6B272}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E528B1DB-3C36-4B44-8647-6C8A0EC0FA65}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E528B1DB-3C36-4B44-8647-6C8A0EC0FA65}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E528B1DB-3C36-4B44-8647-6C8A0EC0FA65}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E528B1DB-3C36-4B44-8647-6C8A0EC0FA65}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B955B90F-E5D5-44D0-B784-6190CF2C5AEA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B955B90F-E5D5-44D0-B784-6190CF2C5AEA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B955B90F-E5D5-44D0-B784-6190CF2C5AEA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B955B90F-E5D5-44D0-B784-6190CF2C5AEA}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
-		{6D160A8D-CD33-4DF9-89E7-208E8EFA1B46} = {FAA27210-BBD1-498A-A982-2136396EB5F0}
-		{FA23ECC5-9251-447A-B86B-E3CC2EC6B272} = {FE1D8F88-6F86-4024-87A0-7AB624AD16CD}
+		{E528B1DB-3C36-4B44-8647-6C8A0EC0FA65} = {B0F7FBFA-B964-438C-BC10-C3791BC1C9D2}
+		{B955B90F-E5D5-44D0-B784-6190CF2C5AEA} = {18493BF0-2EC9-4EA4-AA3C-4D99E19AA89C}
 	EndGlobalSection
 EndGlobal

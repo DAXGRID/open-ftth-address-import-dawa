@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace OpenFTTH.AddressIndexer.Dawa;
+namespace OpenFTTH.AddressImporter.Dawa;
 
 internal sealed record Settings
 {

@@ -1,7 +1,7 @@
 using FluentAssertions;
 using Xunit.Extensions.Ordering;
 
-namespace OpenFTTH.AddressIndexer.Dawa.Tests;
+namespace OpenFTTH.AddressImporter.Dawa.Tests;
 
 [Order(10)]
 public class PostgresTransactionStoreTest : IClassFixture<DatabaseFixture>

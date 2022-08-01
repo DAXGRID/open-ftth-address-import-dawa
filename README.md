@@ -1,4 +1,6 @@
-#  OpenFTTH Address Indexer DAWA
+#  OpenFTTH address importer DAWA
+
+This creates events out of change-sets from DAWA and inserts them into the OpenFTTH system.
 
 ## Testing
 
