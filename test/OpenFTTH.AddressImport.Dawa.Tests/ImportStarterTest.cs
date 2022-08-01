@@ -5,7 +5,7 @@ using OpenFTTH.Core.Address;
 using OpenFTTH.EventSourcing;
 using Xunit.Extensions.Ordering;
 
-namespace OpenFTTH.AddressImporter.Dawa.Tests;
+namespace OpenFTTH.AddressImport.Dawa.Tests;
 
 [Order(0)]
 public class ImportStarterTest : IClassFixture<DatabaseFixture>

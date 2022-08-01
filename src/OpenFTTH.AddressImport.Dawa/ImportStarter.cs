@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Logging;
 using OpenFTTH.EventSourcing;
 
-namespace OpenFTTH.AddressImporter.Dawa;
+namespace OpenFTTH.AddressImport.Dawa;
 
 public class ImportStarter
 {

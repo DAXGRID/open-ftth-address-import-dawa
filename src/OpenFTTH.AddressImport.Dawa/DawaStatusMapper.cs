@@ -1,7 +1,7 @@
 using DawaAddress;
 using OpenFTTH.Core.Address;
 
-namespace OpenFTTH.AddressImporter.Dawa;
+namespace OpenFTTH.AddressImport.Dawa;
 
 internal static class DawaStatusMapper
 {

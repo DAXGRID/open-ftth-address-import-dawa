@@ -5,7 +5,7 @@ using Serilog;
 using Serilog.Events;
 using System.Reflection;
 
-namespace OpenFTTH.AddressImporter.Dawa.Tests;
+namespace OpenFTTH.AddressImport.Dawa.Tests;
 
 public static class Startup
 {

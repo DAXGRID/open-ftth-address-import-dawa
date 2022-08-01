@@ -8,7 +8,7 @@ using Serilog.Formatting.Compact;
 using System.Reflection;
 using System.Text.Json;
 
-namespace OpenFTTH.AddressImporter.Dawa;
+namespace OpenFTTH.AddressImport.Dawa;
 
 public sealed class Program
 {
