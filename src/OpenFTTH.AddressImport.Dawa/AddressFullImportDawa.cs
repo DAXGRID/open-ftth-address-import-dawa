@@ -3,7 +3,7 @@ using Microsoft.Extensions.Logging;
 using OpenFTTH.Core.Address;
 using OpenFTTH.EventSourcing;
 
-namespace OpenFTTH.AddressImporter.Dawa;
+namespace OpenFTTH.AddressImport.Dawa;
 
 internal sealed class AddressFullImportDawa : IAddressFullImport
 {

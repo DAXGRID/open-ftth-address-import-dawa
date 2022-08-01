@@ -1,4 +1,4 @@
-namespace OpenFTTH.AddressImporter.Dawa;
+namespace OpenFTTH.AddressImport.Dawa;
 
 public interface IAddressChangesImport
 {

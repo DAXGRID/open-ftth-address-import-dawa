@@ -28,7 +28,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\OpenFTTH.AddressImporter.Dawa\OpenFTTH.AddressImporter.Dawa.csproj" />
+    <ProjectReference Include="..\..\src\OpenFTTH.AddressImport.Dawa\OpenFTTH.AddressImport.Dawa.csproj" />
   </ItemGroup>
 
 </Project>

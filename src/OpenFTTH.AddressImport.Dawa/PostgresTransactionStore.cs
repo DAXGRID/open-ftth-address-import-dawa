@@ -1,7 +1,7 @@
 using DawaAddress;
 using Npgsql;
 
-namespace OpenFTTH.AddressImporter.Dawa;
+namespace OpenFTTH.AddressImport.Dawa;
 
 internal class PostgresTransactionStore : ITransactionStore
 {

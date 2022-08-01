@@ -1,6 +1,6 @@
 using Npgsql;
 
-namespace OpenFTTH.AddressImporter.Dawa.Tests;
+namespace OpenFTTH.AddressImport.Dawa.Tests;
 
 internal class DatabaseFixture
 {

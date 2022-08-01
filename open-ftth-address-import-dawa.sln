@@ -1,0 +1,36 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30114.105
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "test", "test", "{B8077653-3B67-477E-B5F2-F0813FD6EBD0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenFTTH.AddressImport.Dawa.Tests", "test\OpenFTTH.AddressImport.Dawa.Tests\OpenFTTH.AddressImport.Dawa.Tests.csproj", "{7CE67B49-D2A3-4298-AD3D-E1624AB658AB}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{6D7105B2-97C7-4AF6-9B55-0469B5A1B921}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenFTTH.AddressImport.Dawa", "src\OpenFTTH.AddressImport.Dawa\OpenFTTH.AddressImport.Dawa.csproj", "{A266BA48-552E-44FE-A63B-BE7F83BD9972}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{7CE67B49-D2A3-4298-AD3D-E1624AB658AB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7CE67B49-D2A3-4298-AD3D-E1624AB658AB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7CE67B49-D2A3-4298-AD3D-E1624AB658AB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7CE67B49-D2A3-4298-AD3D-E1624AB658AB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A266BA48-552E-44FE-A63B-BE7F83BD9972}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A266BA48-552E-44FE-A63B-BE7F83BD9972}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A266BA48-552E-44FE-A63B-BE7F83BD9972}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A266BA48-552E-44FE-A63B-BE7F83BD9972}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{7CE67B49-D2A3-4298-AD3D-E1624AB658AB} = {B8077653-3B67-477E-B5F2-F0813FD6EBD0}
+		{A266BA48-552E-44FE-A63B-BE7F83BD9972} = {6D7105B2-97C7-4AF6-9B55-0469B5A1B921}
+	EndGlobalSection
+EndGlobal
