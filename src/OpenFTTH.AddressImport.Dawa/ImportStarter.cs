@@ -48,6 +48,8 @@ public class ImportStarter
         }
         else
         {
+            _logger.LogInformation("Starting dehydrate projections.");
+
             // We only need to dehydrate if we are getting changeset.
             _eventStore.DehydrateProjections();
 

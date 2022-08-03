@@ -10,6 +10,7 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
     private readonly DawaClient _dawaClient;
     private readonly ILogger<AddressFullImportDawa> _logger;
     private readonly IEventStore _eventStore;
+    private const int _bulkCount = 5000;
 
     public AddressFullImportDawa(
         HttpClient httpClient,
@@ -69,8 +70,15 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
         var existingRoadOfficialIds = addressProjection.RoadOfficialIdIdToId;
 
         var count = 0;
+        var aggregates = new List<RoadAR>();
         await foreach (var dawaRoad in dawaRoadsAsyncEnumerable)
         {
+            if (aggregates.Count == _bulkCount)
+            {
+                _eventStore.Aggregates.StoreMany(aggregates);
+                aggregates.Clear();
+            }
+
             if (existingRoadOfficialIds.ContainsKey(dawaRoad.Id.ToString()))
             {
                 _logger.LogWarning(
@@ -89,7 +97,7 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
             if (create.IsSuccess)
             {
                 count++;
-                _eventStore.Aggregates.Store(roadAR);
+                aggregates.Add(roadAR);
             }
             else
             {
@@ -97,6 +105,9 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
                     create.Errors.FirstOrDefault()?.Message);
             }
         }
+
+        // Store the remaining.
+        _eventStore.Aggregates.StoreMany(aggregates);
 
         return count;
     }
@@ -108,12 +119,20 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
             .GetAllPostCodesAsync(transactionId, cancellationToken)
             .ConfigureAwait(false);
 
+
         var addressProjection = _eventStore.Projections.Get<AddressProjection>();
         var existingOfficialPostCodeNumbers = addressProjection.PostCodeNumberToId;
 
         var count = 0;
+        var aggregates = new List<PostCodeAR>();
         await foreach (var dawaPostCode in dawaPostCodesAsyncEnumerable)
         {
+            if (aggregates.Count == _bulkCount)
+            {
+                _eventStore.Aggregates.StoreMany(aggregates);
+                aggregates.Clear();
+            }
+
             if (existingOfficialPostCodeNumbers.ContainsKey(dawaPostCode.Number))
             {
                 _logger.LogWarning(
@@ -131,7 +150,7 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
             if (create.IsSuccess)
             {
                 count++;
-                _eventStore.Aggregates.Store(postCodeAR);
+                aggregates.Add(postCodeAR);
             }
             else
             {
@@ -139,6 +158,9 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
                     create.Errors.FirstOrDefault()?.Message);
             }
         }
+
+        // Store remaining
+        _eventStore.Aggregates.StoreMany(aggregates);
 
         return count;
     }
@@ -158,8 +180,15 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
         var officialAccessAddressIds = addressProjection.AccessAddressOfficialIdToId;
 
         var count = 0;
+        var aggregates = new List<AccessAddressAR>();
         await foreach (var dawaAccessAddress in dawaAccessAddressesAsyncEnumerable)
         {
+            if (aggregates.Count == _bulkCount)
+            {
+                _eventStore.Aggregates.StoreMany(aggregates);
+                aggregates.Clear();
+            }
+
             if (officialAccessAddressIds.ContainsKey(dawaAccessAddress.Id.ToString()))
             {
                 _logger.LogWarning(
@@ -210,7 +239,7 @@ post district code: '{PostDistrictCode}'.",
             if (createResult.IsSuccess)
             {
                 count++;
-                _eventStore.Aggregates.Store(accessAddressAR);
+                aggregates.Add(accessAddressAR);
             }
             else
             {
@@ -218,6 +247,9 @@ post district code: '{PostDistrictCode}'.",
                     createResult.Errors.FirstOrDefault()?.Message);
             }
         }
+
+        // Store the remaining
+        _eventStore.Aggregates.StoreMany(aggregates);
 
         return count;
     }
@@ -236,8 +268,15 @@ post district code: '{PostDistrictCode}'.",
         var unitAddressOfficialIds = addressProjection.UnitAddressOfficialIdToId;
 
         var count = 0;
+        var aggregates = new List<UnitAddressAR>();
         await foreach (var dawaUnitAddress in dawaUnitAddresssesAsyncEnumerable)
         {
+            if (aggregates.Count == _bulkCount)
+            {
+                _eventStore.Aggregates.StoreMany(aggregates);
+                aggregates.Clear();
+            }
+
             if (unitAddressOfficialIds.ContainsKey(dawaUnitAddress.Id.ToString()))
             {
                 _logger.LogWarning(
@@ -272,7 +311,7 @@ has already been created.",
             if (createResult.IsSuccess)
             {
                 count++;
-                _eventStore.Aggregates.Store(unitAddressAR);
+                aggregates.Add(unitAddressAR);
             }
             else
             {
@@ -280,6 +319,9 @@ has already been created.",
                     createResult.Errors.FirstOrDefault()?.Message);
             }
         }
+
+        // Store the remaining
+        _eventStore.Aggregates.StoreMany(aggregates);
 
         return count;
     }
