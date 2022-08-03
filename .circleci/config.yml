@@ -9,7 +9,7 @@ executors:
         password: $DOCKER_ACCESSTOKEN
   docker-publisher:
     environment:
-      IMAGE_NAME: openftth/address-indexer-dawa
+      IMAGE_NAME: openftth/address-import-dawa
     docker:
       - image: cimg/base:2020.09
         auth:
@@ -17,8 +17,8 @@ executors:
           password: $DOCKER_ACCESSTOKEN
   alpine-git:
     environment:
-      IMAGE_NAME: address-indexer-dawa
-      CHART_PATH: ./dax/address-indexer-dawa
+      IMAGE_NAME: address-import-dawa
+      CHART_PATH: ./dax/address-import-dawa
       GIT_USER_NAME: "dax-bot"
       GIT_USER_EMAIL: "admin@dax.dk"
       GIT_CLONE_REPO: "git@github.com:DAXGRID/dax-charts.git"
