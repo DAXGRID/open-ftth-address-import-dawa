@@ -12,6 +12,7 @@ internal class DatabaseFixture
 
     public DatabaseFixture()
     {
+        Thread.Sleep(3000);
         DeleteDatabase();
         SetupDatabase();
     }

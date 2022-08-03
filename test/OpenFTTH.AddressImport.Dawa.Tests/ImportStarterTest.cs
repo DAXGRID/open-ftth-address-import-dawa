@@ -113,7 +113,7 @@ public class ImportStarterTest : IClassFixture<DatabaseFixture>
     public async Task Full_import()
     {
         using var cts = new CancellationTokenSource();
-        cts.CancelAfter(TimeSpan.FromMinutes(20));
+        cts.CancelAfter(TimeSpan.FromMinutes(40));
 
         var newestTransactionId = 3905212UL - 20000;
         var transactionStore = A.Fake<ITransactionStore>();
@@ -152,6 +152,15 @@ public class ImportStarterTest : IClassFixture<DatabaseFixture>
     [Trait("Category", "Integration")]
     public async Task Change_import()
     {
+        // This is ugly, but we want a clean projection for running this test.
+        var addressProjection = _eventStore.Projections.Get<AddressProjection>();
+        addressProjection.AccessAddressIds.Clear();
+        addressProjection.PostCodeNumberToId.Clear();
+        addressProjection.UnitAddressOfficialIdToId.Clear();
+        addressProjection.AccessAddressOfficialIdToId.Clear();
+        addressProjection.RoadOfficialIdIdToId.Clear();
+        // end of ugly
+
         using var cts = new CancellationTokenSource();
         cts.CancelAfter(TimeSpan.FromMinutes(5));
 

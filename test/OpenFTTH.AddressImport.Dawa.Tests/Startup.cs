@@ -1,6 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using OpenFTTH.EventSourcing;
-using OpenFTTH.EventSourcing.InMem;
+using OpenFTTH.EventSourcing.Postgres;
 using Serilog;
 using Serilog.Events;
 using System.Reflection;
@@ -29,7 +29,12 @@ public static class Startup
         services.AddSingleton(new Settings(DatabaseFixture.TestDbConnectionString));
         services.AddSingleton<IAddressFullImport, AddressFullImportDawa>();
         services.AddSingleton<IAddressChangesImport, AddressChangesImportDawa>();
-        services.AddSingleton<IEventStore, InMemEventStore>();
+        services.AddSingleton<IEventStore>(
+            e =>
+            new PostgresEventStore(
+                serviceProvider: e.GetRequiredService<IServiceProvider>(),
+                connectionString: DatabaseFixture.TestDbConnectionString,
+                databaseSchemaName: "events"));
         services.AddSingleton<ITransactionStore, PostgresTransactionStore>();
         services.AddProjections(new Assembly[]
         {
