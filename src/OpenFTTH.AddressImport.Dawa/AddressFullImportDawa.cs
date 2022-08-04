@@ -75,7 +75,9 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
         {
             if (aggregates.Count == _bulkCount)
             {
-                _eventStore.Aggregates.StoreMany(aggregates);
+                await _eventStore.Aggregates
+                    .StoreManyAsync(aggregates)
+                    .ConfigureAwait(false);
                 aggregates.Clear();
             }
 
@@ -107,7 +109,9 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
         }
 
         // Store the remaining.
-        _eventStore.Aggregates.StoreMany(aggregates);
+        await _eventStore.Aggregates
+            .StoreManyAsync(aggregates)
+            .ConfigureAwait(false);
 
         return count;
     }
@@ -129,7 +133,9 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
         {
             if (aggregates.Count == _bulkCount)
             {
-                _eventStore.Aggregates.StoreMany(aggregates);
+                await _eventStore.Aggregates
+                    .StoreManyAsync(aggregates)
+                    .ConfigureAwait(false);
                 aggregates.Clear();
             }
 
@@ -160,7 +166,9 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
         }
 
         // Store remaining
-        _eventStore.Aggregates.StoreMany(aggregates);
+        await _eventStore.Aggregates
+            .StoreManyAsync(aggregates)
+            .ConfigureAwait(false);
 
         return count;
     }
@@ -185,7 +193,9 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
         {
             if (aggregates.Count == _bulkCount)
             {
-                _eventStore.Aggregates.StoreMany(aggregates);
+                await _eventStore.Aggregates
+                    .StoreManyAsync(aggregates)
+                    .ConfigureAwait(false);
                 aggregates.Clear();
             }
 
@@ -249,7 +259,9 @@ post district code: '{PostDistrictCode}'.",
         }
 
         // Store the remaining
-        _eventStore.Aggregates.StoreMany(aggregates);
+        await _eventStore.Aggregates
+            .StoreManyAsync(aggregates)
+            .ConfigureAwait(false);
 
         return count;
     }
@@ -273,7 +285,9 @@ post district code: '{PostDistrictCode}'.",
         {
             if (aggregates.Count == _bulkCount)
             {
-                _eventStore.Aggregates.StoreMany(aggregates);
+                await _eventStore.Aggregates
+                    .StoreManyAsync(aggregates)
+                    .ConfigureAwait(false);
                 aggregates.Clear();
             }
 
@@ -321,7 +335,9 @@ has already been created.",
         }
 
         // Store the remaining
-        _eventStore.Aggregates.StoreMany(aggregates);
+        await _eventStore.Aggregates
+            .StoreManyAsync(aggregates)
+            .ConfigureAwait(false);
 
         return count;
     }

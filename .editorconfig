@@ -10,8 +10,5 @@ dotnet_diagnostic.CA1812.severity = none
 # CA1848: We disable this since we do not log very much.
 dotnet_diagnostic.CA1848.severity = none
 
-#CA1849: Call async methods when in an async method
-dotnet_diagnostic.CA1849.severity = none
-
 #CA1707: Identifiers should not contain underscores
 dotnet_diagnostic.CA1707.severity = none

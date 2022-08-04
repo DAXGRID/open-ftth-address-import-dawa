@@ -12,7 +12,9 @@ internal class DatabaseFixture
 
     public DatabaseFixture()
     {
-        Thread.Sleep(3000);
+        // Sleep for 10 seconds, because it might take a bit before
+        // we can clean the database.
+        Thread.Sleep(10000);
         DeleteDatabase();
         SetupDatabase();
     }
