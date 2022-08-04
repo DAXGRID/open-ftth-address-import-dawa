@@ -7,7 +7,7 @@ internal class PostgresTransactionStore : ITransactionStore
 {
     private DawaClient _dawaClient;
     private string _connectionString;
-    private const string _schemaName = "address_indexer";
+    private const string _schemaName = "address_import";
     private const string _tableName = "transaction_store";
 
     public PostgresTransactionStore(HttpClient httpClient, Settings settings)
