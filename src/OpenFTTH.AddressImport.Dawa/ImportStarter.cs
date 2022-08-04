@@ -51,7 +51,9 @@ public class ImportStarter
             _logger.LogInformation("Starting dehydrate projections.");
 
             // We only need to dehydrate if we are getting changeset.
-            _eventStore.DehydrateProjections();
+            await _eventStore
+                .DehydrateProjectionsAsync()
+                .ConfigureAwait(false);
 
             _logger.LogInformation(
                 @"Getting changes from

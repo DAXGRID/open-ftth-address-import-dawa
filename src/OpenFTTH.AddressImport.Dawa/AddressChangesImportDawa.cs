@@ -86,7 +86,9 @@ internal sealed class AddressChangesImportDawa : IAddressChangesImport
 
                 if (createResult.IsSuccess)
                 {
-                    _eventStore.Aggregates.Store(postCodeAR);
+                    await _eventStore.Aggregates
+                        .StoreAsync(postCodeAR)
+                        .ConfigureAwait(false);
                 }
                 else
                 {
@@ -112,7 +114,9 @@ internal sealed class AddressChangesImportDawa : IAddressChangesImport
 
                     if (updateResult.IsSuccess)
                     {
-                        _eventStore.Aggregates.Store(postCodeAR);
+                        await _eventStore.Aggregates
+                            .StoreAsync(postCodeAR)
+                            .ConfigureAwait(false);
                     }
                     else
                     {
@@ -154,7 +158,9 @@ on {nameof(postCodeId)}: '{postCodeId}'");
 
                     if (deleteResult.IsSuccess)
                     {
-                        _eventStore.Aggregates.Store(postCodeAR);
+                        await _eventStore.Aggregates
+                            .StoreAsync(postCodeAR)
+                            .ConfigureAwait(false);
                     }
                     else
                     {
@@ -225,7 +231,9 @@ on {nameof(postCodeId)}: '{postCodeId}'");
 
                 if (createResult.IsSuccess)
                 {
-                    _eventStore.Aggregates.Store(roadAR);
+                    await _eventStore.Aggregates
+                        .StoreAsync(roadAR)
+                        .ConfigureAwait(false);
                 }
                 else
                 {
@@ -257,7 +265,9 @@ on {nameof(postCodeId)}: '{postCodeId}'");
 
                 if (updateResult.IsSuccess)
                 {
-                    _eventStore.Aggregates.Store(roadAR);
+                    await _eventStore.Aggregates
+                        .StoreAsync(roadAR)
+                        .ConfigureAwait(false);
                 }
                 else
                 {
@@ -295,7 +305,9 @@ for deletion.");
                 var deleteResult = roadAR.Delete();
                 if (deleteResult.IsSuccess)
                 {
-                    _eventStore.Aggregates.Store(roadAR);
+                    await _eventStore.Aggregates
+                        .StoreAsync(roadAR)
+                        .ConfigureAwait(false);
                 }
                 else
                 {
@@ -386,7 +398,9 @@ post district code: '{PostDistrictCode}'.",
 
                     if (createResult.IsSuccess)
                     {
-                        _eventStore.Aggregates.Store(accessAddressAR);
+                        await _eventStore.Aggregates
+                            .StoreAsync(accessAddressAR)
+                            .ConfigureAwait(false);
                     }
                     else
                     {
@@ -456,7 +470,9 @@ post district code: '{PostDistrictCode}'.",
 
                 if (updateResult.IsSuccess)
                 {
-                    _eventStore.Aggregates.Store(accessAddressAR);
+                    await _eventStore.Aggregates
+                        .StoreAsync(accessAddressAR)
+                        .ConfigureAwait(false);
                 }
                 else
                 {
@@ -495,7 +511,9 @@ post district code: '{PostDistrictCode}'.",
                 var deleteResult = accessAddressAR.Delete();
                 if (deleteResult.IsSuccess)
                 {
-                    _eventStore.Aggregates.Store(accessAddressAR);
+                    await _eventStore.Aggregates
+                        .StoreAsync(accessAddressAR)
+                        .ConfigureAwait(false);
                 }
                 else
                 {
@@ -573,7 +591,9 @@ official accessAddressId: '{AccessAddressId}'.",
 
                 if (createResult.IsSuccess)
                 {
-                    _eventStore.Aggregates.Store(unitAddressAR);
+                    await _eventStore.Aggregates
+                        .StoreAsync(unitAddressAR)
+                        .ConfigureAwait(false);
                 }
                 else
                 {
@@ -617,7 +637,9 @@ official accessAddressId: '{AccessAddressId}'.",
 
                 if (updateResult.IsSuccess)
                 {
-                    _eventStore.Aggregates.Store(unitAddressAR);
+                    await _eventStore.Aggregates
+                        .StoreAsync(unitAddressAR)
+                        .ConfigureAwait(false);
                 }
                 else
                 {
@@ -646,7 +668,9 @@ official accessAddressId: '{AccessAddressId}'.",
                     var deleteResult = unitAddressAR.Delete();
                     if (deleteResult.IsSuccess)
                     {
-                        _eventStore.Aggregates.Store(unitAddressAR);
+                        await _eventStore.Aggregates
+                            .StoreAsync(unitAddressAR)
+                            .ConfigureAwait(false);
                     }
                     else
                     {
