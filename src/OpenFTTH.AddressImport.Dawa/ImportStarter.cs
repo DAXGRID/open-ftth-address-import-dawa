@@ -29,7 +29,10 @@ public class ImportStarter
     {
         _logger.LogInformation("Starting {Name}.", nameof(ImportStarter));
 
-        await _transactionStore.Init().ConfigureAwait(false);
+        _logger.LogInformation("Starting dehydrate projections.");
+
+        // We only need to dehydrate if we are getting changeset.
+        await _eventStore.DehydrateProjectionsAsync().ConfigureAwait(false);
 
         var lastCompletedTransactionId = await _transactionStore
             .LastCompleted(cancellationToken)
@@ -48,13 +51,6 @@ public class ImportStarter
         }
         else
         {
-            _logger.LogInformation("Starting dehydrate projections.");
-
-            // We only need to dehydrate if we are getting changeset.
-            await _eventStore
-                .DehydrateProjectionsAsync()
-                .ConfigureAwait(false);
-
             _logger.LogInformation(
                 @"Getting changes from
 {LastCompletedTransactionId} to {NewestTransactionId}.",
