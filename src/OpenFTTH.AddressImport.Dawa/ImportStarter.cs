@@ -51,12 +51,6 @@ public class ImportStarter
         }
         else
         {
-            _logger.LogInformation(
-                @"Getting changes from
-{LastCompletedTransactionId} to {NewestTransactionId}.",
-                lastCompletedTransactionId,
-                newestTransactionId);
-
             await _addressChangesImport
                 .Start(lastCompletedTransactionId.Value,
                        newestTransactionId,
