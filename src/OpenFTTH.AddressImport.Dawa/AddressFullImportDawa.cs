@@ -83,7 +83,7 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
 
             if (existingRoadOfficialIds.ContainsKey(dawaRoad.Id.ToString()))
             {
-                _logger.LogWarning(
+                _logger.LogDebug(
                     "Road with official id: '{OfficialId}' has already been created.",
                     dawaRoad.Id);
                 continue;
@@ -123,7 +123,6 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
             .GetAllPostCodesAsync(transactionId, cancellationToken)
             .ConfigureAwait(false);
 
-
         var addressProjection = _eventStore.Projections.Get<AddressProjection>();
         var existingOfficialPostCodeNumbers = addressProjection.PostCodeNumberToId;
 
@@ -141,7 +140,7 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
 
             if (existingOfficialPostCodeNumbers.ContainsKey(dawaPostCode.Number))
             {
-                _logger.LogWarning(
+                _logger.LogDebug(
                     "Post code with number: '{PostCodeNumber}' has already been created.",
                     dawaPostCode.Number);
                 continue;
@@ -201,7 +200,7 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
 
             if (officialAccessAddressIds.ContainsKey(dawaAccessAddress.Id.ToString()))
             {
-                _logger.LogWarning(
+                _logger.LogDebug(
                     @"Access address with official id: '{DawaAccessAddressOfficialId}'
 has already been created.",
                     dawaAccessAddress.Id);
@@ -293,7 +292,7 @@ post district code: '{PostDistrictCode}'.",
 
             if (unitAddressOfficialIds.ContainsKey(dawaUnitAddress.Id.ToString()))
             {
-                _logger.LogWarning(
+                _logger.LogDebug(
                     @"Unit address with official id: '{DawaUnitAddressOfficialId}'
 has already been created.",
                     dawaUnitAddress.Id);
