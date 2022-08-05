@@ -29,9 +29,7 @@ public class ImportStarter
     {
         _logger.LogInformation("Starting {Name}.", nameof(ImportStarter));
 
-        _logger.LogInformation("Starting dehydrate projections.");
-
-        // We only need to dehydrate if we are getting changeset.
+        _logger.LogInformation("Starting to dehydrate projections.");
         await _eventStore.DehydrateProjectionsAsync().ConfigureAwait(false);
 
         var lastCompletedTransactionId = await _transactionStore
