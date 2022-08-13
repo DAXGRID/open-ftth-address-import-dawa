@@ -94,7 +94,9 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
                 id: Guid.NewGuid(),
                 officialId: dawaRoad.Id.ToString(),
                 name: dawaRoad.Name,
-                status: DawaStatusMapper.MapRoadStatus(dawaRoad.Status));
+                status: DawaStatusMapper.MapRoadStatus(dawaRoad.Status),
+                created: dawaRoad.Created,
+                updated: dawaRoad.Updated);
 
             if (create.IsSuccess)
             {
@@ -150,7 +152,9 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
             var create = postCodeAR.Create(
                 id: Guid.NewGuid(),
                 number: dawaPostCode.Number,
-                name: dawaPostCode.Name);
+                name: dawaPostCode.Name,
+                created: DateTime.UtcNow,
+                updated: DateTime.UtcNow);
 
             if (create.IsSuccess)
             {
@@ -243,7 +247,8 @@ post district code: '{PostDistrictCode}'.",
                 plotId: dawaAccessAddress.PlotId,
                 roadId: roadId,
                 existingRoadIds: existingRoadIds,
-                existingPostCodeIds: existingPostCodeIds);
+                existingPostCodeIds: existingPostCodeIds,
+                pendingOfficial: false);
 
             if (createResult.IsSuccess)
             {
@@ -319,7 +324,8 @@ has already been created.",
                 suitName: dawaUnitAddress.SuitName,
                 created: dawaUnitAddress.Created,
                 updated: dawaUnitAddress.Updated,
-                existingAccessAddressIds: existingAccessAddressIds);
+                existingAccessAddressIds: existingAccessAddressIds,
+                pendingOfficial: false);
 
             if (createResult.IsSuccess)
             {

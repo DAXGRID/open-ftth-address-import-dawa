@@ -30,7 +30,9 @@ public class ImportStarter
         _logger.LogInformation("Starting {Name}.", nameof(ImportStarter));
 
         _logger.LogInformation("Starting to dehydrate projections.");
-        await _eventStore.DehydrateProjectionsAsync().ConfigureAwait(false);
+        await _eventStore
+            .DehydrateProjectionsAsync(cancellationToken)
+            .ConfigureAwait(false);
 
         var lastCompletedTransactionId = await _transactionStore
             .LastCompleted(cancellationToken)

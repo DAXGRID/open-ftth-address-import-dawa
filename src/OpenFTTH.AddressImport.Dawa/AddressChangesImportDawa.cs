@@ -82,7 +82,9 @@ internal sealed class AddressChangesImportDawa : IAddressChangesImport
                 var createResult = postCodeAR.Create(
                     id: Guid.NewGuid(),
                     number: postCodeChange.Data.Number,
-                    name: postCodeChange.Data.Name);
+                    name: postCodeChange.Data.Name,
+                    created: postCodeChange.ChangeTime,
+                    updated: postCodeChange.ChangeTime);
 
                 if (createResult.IsSuccess)
                 {
@@ -110,7 +112,9 @@ internal sealed class AddressChangesImportDawa : IAddressChangesImport
                 var postCodeAR = _eventStore.Aggregates.Load<PostCodeAR>(postCodeId);
                 if (postCodeAR is not null)
                 {
-                    var updateResult = postCodeAR.Update(postCodeChange.Data.Name);
+                    var updateResult = postCodeAR.Update(
+                        name: postCodeChange.Data.Name,
+                        updated: postCodeChange.ChangeTime);
 
                     if (updateResult.IsSuccess)
                     {
@@ -154,7 +158,8 @@ on {nameof(postCodeId)}: '{postCodeId}'");
                 var postCodeAR = _eventStore.Aggregates.Load<PostCodeAR>(postCodeId);
                 if (postCodeAR is not null)
                 {
-                    var deleteResult = postCodeAR.Delete();
+                    var deleteResult = postCodeAR.Delete(
+                        updated: postCodeChange.ChangeTime);
 
                     if (deleteResult.IsSuccess)
                     {
@@ -227,7 +232,9 @@ on {nameof(postCodeId)}: '{postCodeId}'");
                     id: Guid.NewGuid(),
                     officialId: change.Data.Id.ToString(),
                     name: change.Data.Name,
-                    status: DawaStatusMapper.MapRoadStatus(change.Data.Status));
+                    status: DawaStatusMapper.MapRoadStatus(change.Data.Status),
+                    created: change.Data.Created,
+                    updated: change.Data.Updated);
 
                 if (createResult.IsSuccess)
                 {
@@ -261,7 +268,8 @@ on {nameof(postCodeId)}: '{postCodeId}'");
                 var updateResult = roadAR.Update(
                     name: change.Data.Name,
                     officialId: change.Data.Id.ToString(),
-                    status: DawaStatusMapper.MapRoadStatus(change.Data.Status));
+                    status: DawaStatusMapper.MapRoadStatus(change.Data.Status),
+                    updated: change.Data.Updated);
 
                 if (updateResult.IsSuccess)
                 {
@@ -302,7 +310,9 @@ for deletion.");
                         $"Could not load {nameof(RoadAR)} on id '{roadId}'.");
                 }
 
-                var deleteResult = roadAR.Delete();
+                var deleteResult = roadAR.Delete(
+                    updated: change.ChangeTime);
+
                 if (deleteResult.IsSuccess)
                 {
                     await _eventStore.Aggregates
@@ -356,7 +366,8 @@ for deletion.");
         {
             if (change.Operation == DawaEntityChangeOperation.Insert)
             {
-                if (!addressProjection.AccessAddressOfficialIdToId.ContainsKey(change.Data.Id.ToString()))
+                if (!addressProjection.AccessAddressOfficialIdToId
+                    .ContainsKey(change.Data.Id.ToString()))
                 {
                     var accessAddressAR = new AccessAddressAR();
                     if (!addressProjection.PostCodeNumberToId.TryGetValue(
@@ -394,7 +405,8 @@ post district code: '{PostDistrictCode}'.",
                         plotId: change.Data.PlotId,
                         roadId: roadId,
                         existingRoadIds: existingRoadIds,
-                        existingPostCodeIds: existingPostCodes);
+                        existingPostCodeIds: existingPostCodes,
+                        pendingOfficial: false);
 
                     if (createResult.IsSuccess)
                     {
@@ -466,7 +478,8 @@ post district code: '{PostDistrictCode}'.",
                     plotId: change.Data.PlotId,
                     roadId: roadId,
                     existingRoadIds: existingRoadIds,
-                    existingPostCodeIds: existingPostCodes);
+                    existingPostCodeIds: existingPostCodes,
+                    pendingOfficial: false);
 
                 if (updateResult.IsSuccess)
                 {
@@ -508,7 +521,9 @@ post district code: '{PostDistrictCode}'.",
  on id '{accessAddressId}'.");
                 }
 
-                var deleteResult = accessAddressAR.Delete();
+                var deleteResult = accessAddressAR.Delete(
+                    updated: change.ChangeTime);
+
                 if (deleteResult.IsSuccess)
                 {
                     await _eventStore.Aggregates
@@ -587,7 +602,8 @@ official accessAddressId: '{AccessAddressId}'.",
                     suitName: change.Data.SuitName,
                     created: change.Data.Created,
                     updated: change.Data.Updated,
-                    existingAccessAddressIds: existingAccessAddressIds);
+                    existingAccessAddressIds: existingAccessAddressIds,
+                    pendingOfficial: false);
 
                 if (createResult.IsSuccess)
                 {
@@ -624,7 +640,8 @@ official accessAddressId: '{AccessAddressId}'.",
                     continue;
                 }
 
-                var unitAddressAR = _eventStore.Aggregates.Load<UnitAddressAR>(unitAddressId);
+                var unitAddressAR = _eventStore.Aggregates
+                    .Load<UnitAddressAR>(unitAddressId);
 
                 var updateResult = unitAddressAR.Update(
                     officialId: change.Data.Id.ToString(),
@@ -633,7 +650,8 @@ official accessAddressId: '{AccessAddressId}'.",
                     floorName: change.Data.FloorName,
                     suitName: change.Data.SuitName,
                     updated: change.Data.Updated,
-                    existingAccessAddressIds: existingAccessAddressIds);
+                    existingAccessAddressIds: existingAccessAddressIds,
+                    pendingOfficial: false);
 
                 if (updateResult.IsSuccess)
                 {
@@ -665,7 +683,9 @@ official accessAddressId: '{AccessAddressId}'.",
                     var unitAddressAR = _eventStore.Aggregates
                         .Load<UnitAddressAR>(unitAddressId);
 
-                    var deleteResult = unitAddressAR.Delete();
+                    var deleteResult = unitAddressAR.Delete(
+                        updated: change.ChangeTime);
+
                     if (deleteResult.IsSuccess)
                     {
                         await _eventStore.Aggregates
@@ -675,7 +695,8 @@ official accessAddressId: '{AccessAddressId}'.",
                     else
                     {
                         var error = (UnitAddressError)deleteResult.Errors.First();
-                        if (error.Code == UnitAddressErrorCodes.CANNOT_DELETE_ALREADY_DELETED)
+                        if (error.Code == UnitAddressErrorCodes
+                            .CANNOT_DELETE_ALREADY_DELETED)
                         {
                             // No changes is okay, we just log it.
                             _logger.LogWarning("{ErrorMessage}", error.Message);

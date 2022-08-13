@@ -162,7 +162,7 @@ public class ImportStarterTest : IClassFixture<DatabaseFixture>
         // end of ugly
 
         using var cts = new CancellationTokenSource();
-        cts.CancelAfter(TimeSpan.FromMinutes(5));
+        cts.CancelAfter(TimeSpan.FromMinutes(10));
 
         var newestTransactionId = 3905212UL;
         var transactionStore = A.Fake<ITransactionStore>();
