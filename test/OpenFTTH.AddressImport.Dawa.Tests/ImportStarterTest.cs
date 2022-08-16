@@ -144,7 +144,7 @@ public class ImportStarterTest : IClassFixture<DatabaseFixture>
             .Should().BeGreaterThan(100);
         addressProjection.AccessAddressIds.Count
             .Should().BeGreaterThan(100);
-        addressProjection.AccessAddressOfficialIdToId.Count
+        addressProjection.AccessAddressExternalIdToId.Count
             .Should().BeGreaterThan(100);
     }
 
@@ -156,9 +156,9 @@ public class ImportStarterTest : IClassFixture<DatabaseFixture>
         var addressProjection = _eventStore.Projections.Get<AddressProjection>();
         addressProjection.AccessAddressIds.Clear();
         addressProjection.PostCodeNumberToId.Clear();
-        addressProjection.UnitAddressOfficialIdToId.Clear();
-        addressProjection.AccessAddressOfficialIdToId.Clear();
-        addressProjection.RoadOfficialIdIdToId.Clear();
+        addressProjection.UnitAddressExternalIdToId.Clear();
+        addressProjection.AccessAddressExternalIdToId.Clear();
+        addressProjection.RoadExternalIdIdToId.Clear();
         // end of ugly
 
         using var cts = new CancellationTokenSource();

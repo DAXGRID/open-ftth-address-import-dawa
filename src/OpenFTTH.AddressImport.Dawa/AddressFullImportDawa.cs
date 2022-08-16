@@ -67,7 +67,7 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
             .ConfigureAwait(false);
 
         var addressProjection = _eventStore.Projections.Get<AddressProjection>();
-        var existingRoadOfficialIds = addressProjection.RoadOfficialIdIdToId;
+        var existingRoadOfficialIds = addressProjection.RoadExternalIdIdToId;
 
         var count = 0;
         var aggregates = new List<RoadAR>();
@@ -92,11 +92,11 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
             var roadAR = new RoadAR();
             var create = roadAR.Create(
                 id: Guid.NewGuid(),
-                officialId: dawaRoad.Id.ToString(),
+                externalId: dawaRoad.Id.ToString(),
                 name: dawaRoad.Name,
                 status: DawaStatusMapper.MapRoadStatus(dawaRoad.Status),
-                created: dawaRoad.Created,
-                updated: dawaRoad.Updated);
+                externalCreatedDate: dawaRoad.Created,
+                externalUpdatedDate: dawaRoad.Updated);
 
             if (create.IsSuccess)
             {
@@ -153,8 +153,8 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
                 id: Guid.NewGuid(),
                 number: dawaPostCode.Number,
                 name: dawaPostCode.Name,
-                created: DateTime.UtcNow,
-                updated: DateTime.UtcNow);
+                externalCreatedDate: null,
+                externalUpdatedDate: null);
 
             if (create.IsSuccess)
             {
@@ -188,7 +188,7 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
         // Important to be computed outside the loop, the computation is expensive.
         var existingRoadIds = addressProjection.GetRoadIds();
         var existingPostCodeIds = addressProjection.GetPostCodeIds();
-        var officialAccessAddressIds = addressProjection.AccessAddressOfficialIdToId;
+        var officialAccessAddressIds = addressProjection.AccessAddressExternalIdToId;
 
         var count = 0;
         var aggregates = new List<AccessAddressAR>();
@@ -222,7 +222,7 @@ post district code: '{PostDistrictCode}'.",
                 continue;
             }
 
-            if (!addressProjection.RoadOfficialIdIdToId.TryGetValue(
+            if (!addressProjection.RoadExternalIdIdToId.TryGetValue(
                     dawaAccessAddress.RoadId.ToString(), out var roadId))
             {
                 _logger.LogWarning(
@@ -233,9 +233,9 @@ post district code: '{PostDistrictCode}'.",
 
             var createResult = accessAddressAR.Create(
                 id: Guid.NewGuid(),
-                officialId: dawaAccessAddress.Id.ToString(),
-                created: dawaAccessAddress.Created,
-                updated: dawaAccessAddress.Updated,
+                externalId: dawaAccessAddress.Id.ToString(),
+                externalCreatedDate: dawaAccessAddress.Created,
+                externalUpdatedDate: dawaAccessAddress.Updated,
                 municipalCode: dawaAccessAddress.MunicipalCode,
                 status: DawaStatusMapper.MapAccessAddressStatus(dawaAccessAddress.Status),
                 roadCode: dawaAccessAddress.RoadCode,
@@ -281,7 +281,7 @@ post district code: '{PostDistrictCode}'.",
 
         // Important to be computed outside the loop, the computation is expensive.
         var existingAccessAddressIds = addressProjection.AccessAddressIds;
-        var unitAddressOfficialIds = addressProjection.UnitAddressOfficialIdToId;
+        var unitAddressOfficialIds = addressProjection.UnitAddressExternalIdToId;
 
         var count = 0;
         var aggregates = new List<UnitAddressAR>();
@@ -306,7 +306,7 @@ has already been created.",
 
             var unitAddressAR = new UnitAddressAR();
 
-            if (!addressProjection.AccessAddressOfficialIdToId.TryGetValue(
+            if (!addressProjection.AccessAddressExternalIdToId.TryGetValue(
                     dawaUnitAddress.AccessAddressId.ToString(), out var accessAddressId))
             {
                 _logger.LogWarning(
@@ -317,13 +317,13 @@ has already been created.",
 
             var createResult = unitAddressAR.Create(
                 id: Guid.NewGuid(),
-                officialId: dawaUnitAddress.Id.ToString(),
+                externalId: dawaUnitAddress.Id.ToString(),
                 accessAddressId: accessAddressId,
                 status: DawaStatusMapper.MapUnitAddressStatus(dawaUnitAddress.Status),
                 floorName: dawaUnitAddress.FloorName,
                 suitName: dawaUnitAddress.SuitName,
-                created: dawaUnitAddress.Created,
-                updated: dawaUnitAddress.Updated,
+                externalCreatedDate: dawaUnitAddress.Created,
+                externalUpdatedDate: dawaUnitAddress.Updated,
                 existingAccessAddressIds: existingAccessAddressIds,
                 pendingOfficial: false);
 
