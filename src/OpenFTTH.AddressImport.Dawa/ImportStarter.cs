@@ -29,6 +29,9 @@ public class ImportStarter
     {
         _logger.LogInformation("Starting {Name}.", nameof(ImportStarter));
 
+        // Init transaction store if not exists
+        await _transactionStore.Init().ConfigureAwait(false);
+
         _logger.LogInformation("Starting to dehydrate projections.");
         await _eventStore
             .DehydrateProjectionsAsync(cancellationToken)
