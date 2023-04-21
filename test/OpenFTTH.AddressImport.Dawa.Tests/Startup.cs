@@ -35,7 +35,9 @@ public static class Startup
                 serviceProvider: e.GetRequiredService<IServiceProvider>(),
                 connectionString: DatabaseFixture.TestDbConnectionString,
                 databaseSchemaName: "events"));
+
         services.AddSingleton<ITransactionStore, PostgresTransactionStore>();
+
         services.AddProjections(new Assembly[]
         {
             AppDomain.CurrentDomain.Load("OpenFTTH.Core.Address")

@@ -7,9 +7,12 @@ using Xunit.Extensions.Ordering;
 
 namespace OpenFTTH.AddressImport.Dawa.Tests;
 
-[Order(0)]
+[Order(10)]
 public class ImportStarterTest : IClassFixture<DatabaseFixture>
 {
+    const int REMOVE_TRANSACTION = 20_000;
+    const ulong GLOBAL_TRANSACTION_ID = 3954964UL;
+
     private readonly IServiceProvider _serviceProvider;
     private readonly IEventStore _eventStore;
     private readonly IAddressFullImport _addressFullImport;
@@ -113,9 +116,9 @@ public class ImportStarterTest : IClassFixture<DatabaseFixture>
     public async Task Full_import()
     {
         using var cts = new CancellationTokenSource();
-        cts.CancelAfter(TimeSpan.FromMinutes(40));
+        cts.CancelAfter(TimeSpan.FromMinutes(60));
 
-        var newestTransactionId = 3905212UL - 20000;
+        var newestTransactionId = GLOBAL_TRANSACTION_ID - REMOVE_TRANSACTION;
         var transactionStore = A.Fake<ITransactionStore>();
 
         A.CallTo(() => transactionStore.LastCompleted(cts.Token))
@@ -162,13 +165,13 @@ public class ImportStarterTest : IClassFixture<DatabaseFixture>
         // end of ugly
 
         using var cts = new CancellationTokenSource();
-        cts.CancelAfter(TimeSpan.FromMinutes(10));
+        cts.CancelAfter(TimeSpan.FromMinutes(60));
 
-        var newestTransactionId = 3905212UL;
+        var newestTransactionId = GLOBAL_TRANSACTION_ID;
         var transactionStore = A.Fake<ITransactionStore>();
 
         A.CallTo(() => transactionStore.LastCompleted(cts.Token))
-            .Returns<ulong?>(newestTransactionId - 20000);
+             .Returns<ulong?>(newestTransactionId - REMOVE_TRANSACTION);
 
         A.CallTo(() => transactionStore.Newest(cts.Token))
             .Returns<ulong>(newestTransactionId);

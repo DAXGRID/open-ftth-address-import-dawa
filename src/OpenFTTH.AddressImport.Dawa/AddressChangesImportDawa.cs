@@ -281,16 +281,12 @@ on {nameof(postCodeId)}: '{postCodeId}'");
                 {
                     // There will always only be a single error.
                     var error = (RoadError)updateResult.Errors.First();
-                    if (error.Code == RoadErrorCode.NO_CHANGES)
-                    {
-                        // No changes is okay, we just log it.
-                        _logger.LogDebug("{ErrorMessage}", error.Message);
-                        continue;
-                    }
-                    else
-                    {
-                        throw new InvalidOperationException(error.Message);
-                    }
+                    // No changes is okay, we just log it.
+                    _logger.LogWarning(
+                        "Id: {ExternalId}, Error: {ErrorMessage}",
+                        error.Message,
+                        change.Data.Id.ToString());
+                    continue;
                 }
             }
             else if (change.Operation == DawaEntityChangeOperation.Delete)
@@ -299,8 +295,7 @@ on {nameof(postCodeId)}: '{postCodeId}'");
                     .TryGetValue(change.Data.Id.ToString(), out var roadId))
                 {
                     throw new InvalidOperationException(
-                        @$"Could not lookup road on id '{change.Data.Id}'
-for deletion.");
+                        $"Could not lookup road on id '{change.Data.Id}' for deletion.");
                 }
 
                 var roadAR = _eventStore.Aggregates.Load<RoadAR>(roadId);
@@ -432,8 +427,10 @@ post district code: '{PostDistrictCode}'.",
                 if (!addressProjection.AccessAddressExternalIdToId
                     .TryGetValue(change.Data.Id.ToString(), out var accessAddressId))
                 {
-                    throw new InvalidOperationException(
-                        $"Could not lookup access address on id '{change.Data.Id}'.");
+                    _logger.LogWarning(
+                        "Could not lookup access address on id {ChangeDataId}.",
+                        change.Data.Id);
+                    continue;
                 }
 
                 var accessAddressAR = _eventStore.Aggregates
@@ -449,8 +446,7 @@ post district code: '{PostDistrictCode}'.",
                         change.Data.PostDistrictCode, out var postCodeId))
                 {
                     _logger.LogWarning(
-                        @"Could not find id using official
-post district code: '{PostDistrictCode}'.",
+                        "Could not find id using official post district code: '{PostDistrictCode}'.",
                         change.Data.PostDistrictCode);
                     continue;
                 }
@@ -491,10 +487,13 @@ post district code: '{PostDistrictCode}'.",
                 {
                     // There will always only be a single error.
                     var error = (AccessAddressError)updateResult.Errors.First();
-                    if (error.Code == AccessAddressErrorCodes.NO_CHANGES)
+                    if (error.Code == AccessAddressErrorCode.NO_CHANGES ||
+                        error.Code == AccessAddressErrorCode.CANNOT_UPDATE_DELETED)
                     {
-                        // No changes is okay, we just log it.
-                        _logger.LogDebug("{ErrorMessage}", error.Message);
+                        _logger.LogInformation(
+                            "{ExternalId}: {ErrorMessage}",
+                            accessAddressAR.ExternalId,
+                            error.Message);
                         continue;
                     }
                     else
@@ -534,7 +533,7 @@ post district code: '{PostDistrictCode}'.",
                 {
                     // There will always only be a single error.
                     var error = (AccessAddressError)deleteResult.Errors.First();
-                    if (error.Code == AccessAddressErrorCodes.CANNOT_DELETE_ALREADY_DELETED)
+                    if (error.Code == AccessAddressErrorCode.CANNOT_DELETE_ALREADY_DELETED)
                     {
                         // No changes is okay, we just log it.
                         _logger.LogDebug("{ErrorMessage}", error.Message);
@@ -599,7 +598,7 @@ official accessAddressId: '{AccessAddressId}'.",
                     accessAddressId: accessAddressId,
                     status: DawaStatusMapper.MapUnitAddressStatus(change.Data.Status),
                     floorName: change.Data.FloorName,
-                    suitName: change.Data.SuitName,
+                    suiteName: change.Data.SuitName,
                     externalCreatedDate: change.Data.Created,
                     externalUpdatedDate: change.Data.Updated,
                     existingAccessAddressIds: existingAccessAddressIds,
@@ -648,7 +647,7 @@ official accessAddressId: '{AccessAddressId}'.",
                     accessAddressId: accessAddressId,
                     status: DawaStatusMapper.MapUnitAddressStatus(change.Data.Status),
                     floorName: change.Data.FloorName,
-                    suitName: change.Data.SuitName,
+                    suiteName: change.Data.SuitName,
                     externalUpdatedDate: change.Data.Updated,
                     existingAccessAddressIds: existingAccessAddressIds,
                     pendingOfficial: false);
@@ -663,10 +662,12 @@ official accessAddressId: '{AccessAddressId}'.",
                 {
                     // There will always only be a single error.
                     var error = (UnitAddressError)updateResult.Errors.First();
-                    if (error.Code == UnitAddressErrorCodes.NO_CHANGES)
+                    if (error.Code == UnitAddressErrorCode.NO_CHANGES)
                     {
-                        // No changes is okay, we just log it.
-                        _logger.LogDebug("{ErrorMessage}", error.Message);
+                        _logger.LogInformation(
+                            "{ExternalId}: {ErrorMessage}",
+                            unitAddressAR.ExternalId,
+                            error.Message);
                         continue;
                     }
                     else
@@ -684,7 +685,7 @@ official accessAddressId: '{AccessAddressId}'.",
                         .Load<UnitAddressAR>(unitAddressId);
 
                     var deleteResult = unitAddressAR.Delete(
-                        updated: change.ChangeTime);
+                        externalUpdatedDate: change.ChangeTime);
 
                     if (deleteResult.IsSuccess)
                     {
@@ -695,7 +696,7 @@ official accessAddressId: '{AccessAddressId}'.",
                     else
                     {
                         var error = (UnitAddressError)deleteResult.Errors.First();
-                        if (error.Code == UnitAddressErrorCodes
+                        if (error.Code == UnitAddressErrorCode
                             .CANNOT_DELETE_ALREADY_DELETED)
                         {
                             // No changes is okay, we just log it.

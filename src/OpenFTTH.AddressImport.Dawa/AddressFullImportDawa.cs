@@ -310,8 +310,9 @@ has already been created.",
                     dawaUnitAddress.AccessAddressId.ToString(), out var accessAddressId))
             {
                 _logger.LogWarning(
-                    "Could not find accessAddress using official accessAddressId: '{AccessAddressId}'.",
-                    dawaUnitAddress.AccessAddressId);
+                    "Could not find accessAddress using official accessAddressId: '{AccessAddressId}', unit address id being '{UnitAddressId}'.",
+                    dawaUnitAddress.AccessAddressId,
+                    dawaUnitAddress.Id);
                 continue;
             }
 
@@ -321,7 +322,7 @@ has already been created.",
                 accessAddressId: accessAddressId,
                 status: DawaStatusMapper.MapUnitAddressStatus(dawaUnitAddress.Status),
                 floorName: dawaUnitAddress.FloorName,
-                suitName: dawaUnitAddress.SuitName,
+                suiteName: dawaUnitAddress.SuitName,
                 externalCreatedDate: dawaUnitAddress.Created,
                 externalUpdatedDate: dawaUnitAddress.Updated,
                 existingAccessAddressIds: existingAccessAddressIds,
