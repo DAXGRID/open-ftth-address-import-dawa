@@ -12,31 +12,40 @@ namespace OpenFTTH.AddressImport.Dawa;
 
 public sealed class Program
 {
-    public static async Task Main(string[] _)
+    public static async Task Main()
     {
         using var token = new CancellationTokenSource();
         var serviceProvider = BuildServiceProvider();
         var startup = serviceProvider.GetService<ImportStarter>();
         var logger = serviceProvider.GetService<ILogger<Program>>();
-
-        if (startup is null)
-        {
-            throw new InvalidOperationException(
-                $"{nameof(ImportStarter)} has not been configured.");
-        }
-
-        if (logger is null)
-        {
-            throw new InvalidOperationException("Logger has not been configured.");
-        }
+        var eventStore = serviceProvider.GetService<IEventStore>();
 
         try
         {
+            if (startup is null)
+            {
+                throw new InvalidOperationException(
+                    $"{nameof(ImportStarter)} is not configured in the IOC container.");
+            }
+
+            if (logger is null)
+            {
+                throw new InvalidOperationException(
+                    $"{nameof(ILogger<Program>)} is not configured in the IOC container.");
+            }
+
+            if (eventStore is null)
+            {
+                throw new InvalidOperationException(
+                    $"{nameof(IEventStore)} is not configured in the IOC container.");
+            }
+
+            eventStore.ScanForProjections();
             await startup.Start().ConfigureAwait(false);
         }
         catch (Exception ex)
         {
-            logger.LogError("{}", ex.ToString());
+            logger!.LogError("{}", ex.ToString());
             throw;
         }
     }
