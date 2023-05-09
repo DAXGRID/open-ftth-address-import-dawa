@@ -662,7 +662,8 @@ official accessAddressId: '{AccessAddressId}'.",
                 {
                     // There will always only be a single error.
                     var error = (UnitAddressError)updateResult.Errors.First();
-                    if (error.Code == UnitAddressErrorCode.NO_CHANGES)
+                    if (error.Code == UnitAddressErrorCode.NO_CHANGES ||
+                        error.Code == UnitAddressErrorCode.CANNOT_UPDATE_DELETED)
                     {
                         _logger.LogInformation(
                             "{ExternalId}: {ErrorMessage}",
