@@ -10,7 +10,7 @@ namespace OpenFTTH.AddressImport.Dawa.Tests;
 [Order(10)]
 public class ImportStarterTest : IClassFixture<DatabaseFixture>
 {
-    const int REMOVE_TRANSACTION = 20_000;
+    const int REMOVE_TRANSACTION = 500;
     const ulong GLOBAL_TRANSACTION_ID = 3954964UL;
 
     private readonly IServiceProvider _serviceProvider;
@@ -82,16 +82,19 @@ public class ImportStarterTest : IClassFixture<DatabaseFixture>
         var eventStore = A.Fake<IEventStore>();
         var transactionStore = A.Fake<ITransactionStore>();
         var lastCompletedTransactionId = 50UL;
-        var newestTransactionId = 100UL;
+        var transactionIdsAfter = new List<ulong> { 51, 52, 53, 54, 55, 56 };
 
         A.CallTo(() => transactionStore.LastCompleted(default))
             .Returns<ulong?>(lastCompletedTransactionId);
 
-        A.CallTo(() => transactionStore.Newest(default))
-            .Returns<ulong>(newestTransactionId);
+        A.CallTo(() => transactionStore.TransactionIdsAfter(lastCompletedTransactionId, default))
+            .Returns<List<ulong>>(transactionIdsAfter);
 
-        A.CallTo(() => transactionStore.Store(newestTransactionId))
-            .Returns<bool>(true);
+        foreach (var transactionId in transactionIdsAfter)
+        {
+            A.CallTo(() => transactionStore.Store(transactionId))
+                .Returns<bool>(true);
+        }
 
         var importStarter = new ImportStarter(
             logger: logger,
@@ -102,9 +105,15 @@ public class ImportStarterTest : IClassFixture<DatabaseFixture>
 
         await importStarter.Start().ConfigureAwait(true);
 
-        A.CallTo(() => addressChangesImport
-                 .Start(lastCompletedTransactionId, newestTransactionId, default))
-            .MustHaveHappenedOnceExactly();
+        // This is a bit ugly, we just want to make sure that each transaction id is used to call address changes.
+        foreach (var tId in transactionIdsAfter)
+        {
+            A.CallTo(() => addressChangesImport
+                     .Start(tId, tId, default))
+                .MustHaveHappenedOnceExactly();
+
+            lastCompletedTransactionId = tId;
+        }
 
         A.CallTo(() => addressFullImport
                  .Start(lastCompletedTransactionId, default))
@@ -165,19 +174,33 @@ public class ImportStarterTest : IClassFixture<DatabaseFixture>
         // end of ugly
 
         using var cts = new CancellationTokenSource();
-        cts.CancelAfter(TimeSpan.FromMinutes(60));
+        cts.CancelAfter(TimeSpan.FromHours(8));
 
         var newestTransactionId = GLOBAL_TRANSACTION_ID;
         var transactionStore = A.Fake<ITransactionStore>();
 
+        // We never have numbers bigger than int in the tests, so this is safe.
+        var transactionIdsAfter = Enumerable
+            .Range((int)newestTransactionId - REMOVE_TRANSACTION, (int)GLOBAL_TRANSACTION_ID)
+            .Select(x => (ulong)x)
+            .ToList();
+
+        var lastCompletedTransactionId = newestTransactionId - REMOVE_TRANSACTION;
+
         A.CallTo(() => transactionStore.LastCompleted(cts.Token))
-             .Returns<ulong?>(newestTransactionId - REMOVE_TRANSACTION);
+             .Returns<ulong?>(lastCompletedTransactionId);
 
         A.CallTo(() => transactionStore.Newest(cts.Token))
             .Returns<ulong>(newestTransactionId);
 
-        A.CallTo(() => transactionStore.Store(newestTransactionId))
-            .Returns<bool>(true);
+        A.CallTo(() => transactionStore.TransactionIdsAfter(lastCompletedTransactionId, cts.Token))
+            .Returns<List<ulong>>(transactionIdsAfter);
+
+        foreach (var transactionIdAfter in transactionIdsAfter)
+        {
+            A.CallTo(() => transactionStore.Store(transactionIdAfter))
+                .Returns<bool>(true);
+        }
 
         var importStarter = new ImportStarter(
             logger: _logger,

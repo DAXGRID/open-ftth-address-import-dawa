@@ -35,6 +35,15 @@ internal class PostgresTransactionStore : ITransactionStore
         return result is not null ? (ulong)result : null;
     }
 
+    public async Task<List<ulong>> TransactionIdsAfter(ulong transactionId, CancellationToken cancellationToken = default)
+    {
+        var transactions = await _dawaClient
+            .GetAllTransactionsAfter(transactionId, cancellationToken)
+            .ConfigureAwait(false);
+
+        return transactions.Select(x => x.Id).ToList();
+    }
+
     public async Task<ulong> Newest(CancellationToken cancellationToken = default)
     {
         var transaction = await _dawaClient

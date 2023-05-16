@@ -37,40 +37,77 @@ public class ImportStarter
             .DehydrateProjectionsAsync(cancellationToken)
             .ConfigureAwait(false);
 
+        _logger.LogInformation("Getting last completed transaction.");
         var lastCompletedTransactionId = await _transactionStore
             .LastCompleted(cancellationToken)
             .ConfigureAwait(false);
 
-        var newestTransactionId = await _transactionStore
-            .Newest(cancellationToken)
-            .ConfigureAwait(false);
-
         if (lastCompletedTransactionId is null)
         {
-            _logger.LogInformation("First run, so we do full import.");
+            var newestTransactionId = await _transactionStore
+                .Newest(cancellationToken)
+                .ConfigureAwait(false);
+
+            _logger.LogInformation(
+                "First run, so we do full import with transaction id: {TransactionId}.",
+                newestTransactionId);
+
             await _addressFullImport
                 .Start(newestTransactionId, cancellationToken)
                 .ConfigureAwait(false);
+
+            _logger.LogInformation(
+                "Storing transaction id: '{TransactionId}'.",
+                newestTransactionId);
+
+            var stored = await _transactionStore
+                .Store(newestTransactionId)
+                .ConfigureAwait(false);
+
+            if (!stored)
+            {
+                throw new InvalidOperationException(
+                    $"Failed storing transaction id: '{newestTransactionId}'");
+            }
         }
         else
         {
-            await _addressChangesImport
-                .Start(lastCompletedTransactionId.Value,
-                       newestTransactionId,
-                       cancellationToken)
+            var transactionIds = await _transactionStore
+                .TransactionIdsAfter(lastCompletedTransactionId.Value, cancellationToken)
                 .ConfigureAwait(false);
-        }
 
-        _logger.LogInformation(
-            "Storing transaction id: '{TransactionId}'.", newestTransactionId);
-        var stored = await _transactionStore
-            .Store(newestTransactionId)
-            .ConfigureAwait(false);
+            var lastTransactionId = lastCompletedTransactionId.Value;
 
-        if (!stored)
-        {
-            throw new InvalidOperationException(
-                $"Failed storing transaction id: '{newestTransactionId}'");
+            foreach (var nextTransactionId in transactionIds)
+            {
+                _logger.LogInformation(
+                    "Starting import from transaction range: {NewestTransactionId} - {NewestTransactionId}.",
+                    lastTransactionId,
+                    nextTransactionId);
+
+                await _addressChangesImport
+                    .Start(nextTransactionId,
+                           nextTransactionId,
+                           cancellationToken)
+                    .ConfigureAwait(false);
+
+                _logger.LogInformation(
+                    "Storing transaction id: '{TransactionId}'.",
+                    nextTransactionId);
+
+                var stored = await _transactionStore
+                    .Store(nextTransactionId)
+                    .ConfigureAwait(false);
+
+                if (!stored)
+                {
+                    throw new InvalidOperationException(
+                        $"Failed storing transaction id: '{nextTransactionId}'");
+                }
+
+                // We update the last completed transaction id to the last completed.
+                lastTransactionId = nextTransactionId;
+            }
         }
     }
 }
