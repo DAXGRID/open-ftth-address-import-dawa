@@ -81,7 +81,7 @@ public class ImportStarter
             foreach (var nextTransactionId in transactionIds)
             {
                 _logger.LogInformation(
-                    "Starting import from transaction range: {NewestTransactionId} - {NewestTransactionId}.",
+                    "Starting import from transaction range: {LastTransactionId} - {NextTransactionId}.",
                     lastTransactionId,
                     nextTransactionId);
 
