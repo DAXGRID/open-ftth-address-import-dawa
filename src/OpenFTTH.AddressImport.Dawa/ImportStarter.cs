@@ -78,25 +78,40 @@ public class ImportStarter
 
             if (newestTransactionId > lastCompletedTransactionId.Value)
             {
-                _logger.LogInformation(
-                    "Starting import from transaction range: {LastTransactionId} - {NewestTransactionId}.",
-                    lastCompletedTransactionId.Value,
-                    newestTransactionId);
-
-                await _addressChangesImport
-                    .Start(lastCompletedTransactionId.Value,
-                           newestTransactionId,
-                           cancellationToken)
+                var transactionIds = await _transactionStore
+                    .TransactionIdsAfter(lastCompletedTransactionId.Value, cancellationToken)
                     .ConfigureAwait(false);
 
-                var stored = await _transactionStore
-                    .Store(newestTransactionId)
-                    .ConfigureAwait(false);
-
-                if (!stored)
+                var lastTransactionId = lastCompletedTransactionId.Value;
+                foreach (var nextTransactionId in transactionIds)
                 {
-                    throw new InvalidOperationException(
-                        $"Failed storing transaction id: '{newestTransactionId}'");
+                    _logger.LogInformation(
+                        "Starting import from transaction range: {LastTransactionId} - {NextTransactionId}.",
+                        lastTransactionId,
+                        nextTransactionId);
+
+                    await _addressChangesImport
+                        .Start(nextTransactionId,
+                               nextTransactionId,
+                               cancellationToken)
+                        .ConfigureAwait(false);
+
+                    _logger.LogInformation(
+                        "Storing transaction id: '{TransactionId}'.",
+                        nextTransactionId);
+
+                    var stored = await _transactionStore
+                        .Store(nextTransactionId)
+                        .ConfigureAwait(false);
+
+                    if (!stored)
+                    {
+                        throw new InvalidOperationException(
+                            $"Failed storing transaction id: '{nextTransactionId}'");
+                    }
+
+                    // We update the last completed transaction id to the last completed.
+                    lastTransactionId = nextTransactionId;
                 }
             }
             else
