@@ -76,25 +76,36 @@ public class ImportStarter
                 .Newest(cancellationToken)
                 .ConfigureAwait(false);
 
-            _logger.LogInformation(
-                "Starting import from transaction range: {LastTransactionId} - {NextTransactionId}.",
-                lastCompletedTransactionId.Value,
-                newestTransactionId);
-
-            await _addressChangesImport
-                .Start(lastCompletedTransactionId.Value,
-                       newestTransactionId,
-                       cancellationToken)
-                .ConfigureAwait(false);
-
-            var stored = await _transactionStore
-                .Store(newestTransactionId)
-                .ConfigureAwait(false);
-
-            if (!stored)
+            if (newestTransactionId > lastCompletedTransactionId.Value)
             {
-                throw new InvalidOperationException(
-                    $"Failed storing transaction id: '{newestTransactionId}'");
+                _logger.LogInformation(
+                    "Starting import from transaction range: {LastTransactionId} - {NewestTransactionId}.",
+                    lastCompletedTransactionId.Value,
+                    newestTransactionId);
+
+                await _addressChangesImport
+                    .Start(lastCompletedTransactionId.Value,
+                           newestTransactionId,
+                           cancellationToken)
+                    .ConfigureAwait(false);
+
+                var stored = await _transactionStore
+                    .Store(newestTransactionId)
+                    .ConfigureAwait(false);
+
+                if (!stored)
+                {
+                    throw new InvalidOperationException(
+                        $"Failed storing transaction id: '{newestTransactionId}'");
+                }
+            }
+            else
+            {
+                _logger.LogInformation(
+                    "No chanes in the transaction id, skipping import. {LastTransactionId} - {NewestTransactionId}.",
+                    lastCompletedTransactionId.Value,
+                    newestTransactionId
+                );
             }
         }
     }
