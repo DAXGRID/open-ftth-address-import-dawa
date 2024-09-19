@@ -86,6 +86,16 @@ public class ImportStarter
                        newestTransactionId,
                        cancellationToken)
                 .ConfigureAwait(false);
+
+            var stored = await _transactionStore
+                .Store(newestTransactionId)
+                .ConfigureAwait(false);
+
+            if (!stored)
+            {
+                throw new InvalidOperationException(
+                    $"Failed storing transaction id: '{newestTransactionId}'");
+            }
         }
     }
 }
