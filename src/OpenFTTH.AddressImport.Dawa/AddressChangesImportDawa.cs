@@ -27,7 +27,7 @@ internal sealed class AddressChangesImportDawa : IAddressChangesImport
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation(
-            "Getting changes from '{LastTransactionId} to {LastestTransactionId}'.",
+            "Getting changes from '{FromTransactionId} to {ToTransactionId}'.",
             fromTransactionId,
             toTransactionId);
 
