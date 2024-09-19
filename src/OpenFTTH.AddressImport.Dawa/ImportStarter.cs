@@ -72,42 +72,20 @@ public class ImportStarter
         }
         else
         {
-            var transactionIds = await _transactionStore
-                .TransactionIdsAfter(lastCompletedTransactionId.Value, cancellationToken)
+            var newestTransactionId = await _transactionStore
+                .Newest(cancellationToken)
                 .ConfigureAwait(false);
 
-            var lastTransactionId = lastCompletedTransactionId.Value;
+            _logger.LogInformation(
+                "Starting import from transaction range: {LastTransactionId} - {NextTransactionId}.",
+                lastCompletedTransactionId.Value,
+                newestTransactionId);
 
-            foreach (var nextTransactionId in transactionIds)
-            {
-                _logger.LogInformation(
-                    "Starting import from transaction range: {LastTransactionId} - {NextTransactionId}.",
-                    lastTransactionId,
-                    nextTransactionId);
-
-                await _addressChangesImport
-                    .Start(nextTransactionId,
-                           nextTransactionId,
-                           cancellationToken)
-                    .ConfigureAwait(false);
-
-                _logger.LogInformation(
-                    "Storing transaction id: '{TransactionId}'.",
-                    nextTransactionId);
-
-                var stored = await _transactionStore
-                    .Store(nextTransactionId)
-                    .ConfigureAwait(false);
-
-                if (!stored)
-                {
-                    throw new InvalidOperationException(
-                        $"Failed storing transaction id: '{nextTransactionId}'");
-                }
-
-                // We update the last completed transaction id to the last completed.
-                lastTransactionId = nextTransactionId;
-            }
+            await _addressChangesImport
+                .Start(lastCompletedTransactionId.Value,
+                       newestTransactionId,
+                       cancellationToken)
+                .ConfigureAwait(false);
         }
     }
 }
