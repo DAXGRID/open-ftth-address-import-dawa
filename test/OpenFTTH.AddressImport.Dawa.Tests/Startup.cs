@@ -19,7 +19,7 @@ public static class Startup
                 .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
                 .MinimumLevel.Override("System", LogEventLevel.Warning)
                 .Enrich.FromLogContext()
-                .WriteTo.Console()
+                .WriteTo.Console(formatProvider: null)
                 .CreateLogger();
 
             logging.AddSerilog(logger, true);

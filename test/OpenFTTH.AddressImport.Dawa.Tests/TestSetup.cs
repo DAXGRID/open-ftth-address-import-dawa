@@ -9,10 +9,7 @@ namespace OpenFTTH.AddressImport.Dawa.Tests
     {
         public TestSetup(IEventStore eventStore)
         {
-            if (eventStore is null)
-            {
-                throw new ArgumentNullException(nameof(eventStore));
-            }
+            ArgumentNullException.ThrowIfNull(eventStore);
 
             eventStore.ScanForProjections();
         }
