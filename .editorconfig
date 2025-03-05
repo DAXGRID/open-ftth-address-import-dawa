@@ -10,5 +10,8 @@ dotnet_diagnostic.CA1812.severity = none
 # CA1848: We disable this since we do not log very much.
 dotnet_diagnostic.CA1848.severity = none
 
-#CA1707: Identifiers should not contain underscores
+# CA1707: Identifiers should not contain underscores
 dotnet_diagnostic.CA1707.severity = none
+
+# CA1515 Because an application's API isn't typically referenced from outside the assembly, types can be made internal
+dotnet_diagnostic.CA1515.severity = none

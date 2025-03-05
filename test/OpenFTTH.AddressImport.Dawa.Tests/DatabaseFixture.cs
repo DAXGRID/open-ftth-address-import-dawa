@@ -2,7 +2,7 @@ using Npgsql;
 
 namespace OpenFTTH.AddressImport.Dawa.Tests;
 
-internal sealed class DatabaseFixture
+public sealed class DatabaseFixture
 {
     private const string _testDbName = "test_db";
     private const string _masterConnectionString =
