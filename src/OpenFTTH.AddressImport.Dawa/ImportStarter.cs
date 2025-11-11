@@ -117,7 +117,7 @@ public class ImportStarter
             else
             {
                 _logger.LogInformation(
-                    "No chanes in the transaction id, skipping import. {LastTransactionId} - {NewestTransactionId}.",
+                    "No changes in the transaction id, skipping import. {LastTransactionId} - {NewestTransactionId}.",
                     lastCompletedTransactionId.Value,
                     newestTransactionId
                 );
