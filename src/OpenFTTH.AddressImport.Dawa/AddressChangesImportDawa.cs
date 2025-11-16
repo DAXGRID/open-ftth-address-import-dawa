@@ -593,6 +593,19 @@ official accessAddressId: '{AccessAddressId}'.",
                 return;
             }
 
+            var accessAddressAr = _eventStore.Aggregates
+                .Load<AccessAddressAR>(accessAddressId);
+
+            if (accessAddressAr.Deleted)
+            {
+                _logger.LogError(
+                    "Cannot insert unit address {UnitAddressExternalid} because the access address has been deleted {InternalAccessAddressId}.",
+                    change.Data.Id,
+                    accessAddressId);
+
+                return;
+            }
+
             var unitAddressAR = new UnitAddressAR();
 
             var createResult = unitAddressAR.Create(
