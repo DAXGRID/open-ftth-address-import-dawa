@@ -51,22 +51,22 @@ internal sealed class AddressChangesImportDawa : IAddressChangesImport
 
         foreach (var change in postCodeChanges)
         {
-            entityChanges.Add(new(change.SequenceNumber, change.Data));
+            entityChanges.Add(new(change.SequenceNumber, change));
         }
 
         foreach (var change in roadChanges)
         {
-            entityChanges.Add(new(change.SequenceNumber, change.Data));
+            entityChanges.Add(new(change.SequenceNumber, change));
         }
 
         foreach (var change in accessAddressChanges)
         {
-            entityChanges.Add(new(change.SequenceNumber, change.Data));
+            entityChanges.Add(new(change.SequenceNumber, change));
         }
 
         foreach (var change in unitAddressChanges)
         {
-            entityChanges.Add(new(change.SequenceNumber, change.Data));
+            entityChanges.Add(new(change.SequenceNumber, change));
         }
 
         foreach (var entityChange in entityChanges.OrderBy(x => x.sequenceNumber))
@@ -85,6 +85,8 @@ internal sealed class AddressChangesImportDawa : IAddressChangesImport
                 case DawaEntityChange<DawaUnitAddress> dawaUnitAddressChange:
                     await ImportUnitAddressChange(dawaUnitAddressChange).ConfigureAwait(false);
                     break;
+                default:
+                    throw new ArgumentException($"Unsupported type.");
             }
         }
 
