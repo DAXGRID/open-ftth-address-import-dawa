@@ -87,6 +87,11 @@ internal sealed class AddressChangesImportDawa : IAddressChangesImport
                     break;
             }
         }
+
+        _logger.LogInformation("Finished processing a total of {PostCodeChangesCount}.", postCodeChanges.Count);
+        _logger.LogInformation("Finished processing a total of {RoadChangesCount}.", roadChanges.Count);
+        _logger.LogInformation("Finished processing a total of {AccessAddressChanges}.", accessAddressChanges.Count);
+        _logger.LogInformation("Finished processing a total of {UnitAddressChangesCount}.", unitAddressChanges.Count);
     }
 
     private async Task ImportPostCodeChange(DawaEntityChange<DawaPostCode> postCodeChange)
