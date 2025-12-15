@@ -127,6 +127,8 @@ public class ImportStarterTest : IClassFixture<DatabaseFixture>
     [Trait("Category", "Integration")]
     public async Task Full_import()
     {
+        _eventStore.ScanForProjections();
+
         using var cts = new CancellationTokenSource();
         cts.CancelAfter(TimeSpan.FromMinutes(60));
 
@@ -167,6 +169,8 @@ public class ImportStarterTest : IClassFixture<DatabaseFixture>
     [Trait("Category", "Integration")]
     public async Task Change_import()
     {
+        _eventStore.ScanForProjections();
+
         // This is ugly, but we want a clean projection for running this test.
         var addressProjection = _eventStore.Projections.Get<AddressProjection>();
         addressProjection.AccessAddressIds.Clear();

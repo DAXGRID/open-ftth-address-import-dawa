@@ -10,8 +10,6 @@ namespace OpenFTTH.AddressImport.Dawa.Tests
         public TestSetup(IEventStore eventStore)
         {
             ArgumentNullException.ThrowIfNull(eventStore);
-
-            eventStore.ScanForProjections();
         }
 
         // This dummy test is made to make sure that the constructor is called.

@@ -12,11 +12,12 @@ public sealed class DatabaseFixture
 
     public DatabaseFixture()
     {
-        // Sleep for 10 seconds, because it might take a bit before
+        // Sleep for 30 seconds, because it might take a bit before
         // we can clean the database.
-        Thread.Sleep(10000);
+        Thread.Sleep(20000);
         DeleteDatabase();
         SetupDatabase();
+        Thread.Sleep(20000);
     }
 
     private static void SetupDatabase()
