@@ -1,5 +1,5 @@
 using FakeItEasy;
-using FluentAssertions;
+using AwesomeAssertions;
 using Microsoft.Extensions.Logging;
 using OpenFTTH.Core.Address;
 using OpenFTTH.EventSourcing;
