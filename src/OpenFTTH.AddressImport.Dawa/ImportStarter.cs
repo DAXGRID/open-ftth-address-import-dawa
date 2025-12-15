@@ -87,7 +87,7 @@ public class ImportStarter
                 {
                     _logger.LogInformation(
                         "Starting import from transaction range: {LastTransactionId} - {NextTransactionId}.",
-                        lastTransactionId,
+                        nextTransactionId,
                         nextTransactionId);
 
                     await _addressChangesImport
