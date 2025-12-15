@@ -73,8 +73,8 @@ public class ImportStarterTest : IClassFixture<DatabaseFixture>
     [Trait("Category", "Unit")]
     public async Task Has_previous_transaction_id_do_change_import()
     {
-        using var cts = new CancellationTokenSource();
-        cts.CancelAfter(TimeSpan.FromSeconds(5));
+        var source = new CancellationTokenSource();
+        var token = source.Token;
 
         var logger = A.Fake<ILogger<ImportStarter>>();
         var addressFullImport = A.Fake<IAddressFullImport>();
@@ -84,11 +84,14 @@ public class ImportStarterTest : IClassFixture<DatabaseFixture>
         var lastCompletedTransactionId = 50UL;
         var transactionIdsAfter = new List<ulong> { 51, 52, 53, 54, 55, 56 };
 
-        A.CallTo(() => transactionStore.LastCompleted(default))
+        A.CallTo(() => transactionStore.LastCompleted(token))
             .Returns<ulong?>(lastCompletedTransactionId);
 
-        A.CallTo(() => transactionStore.TransactionIdsAfter(lastCompletedTransactionId, default))
+        A.CallTo(() => transactionStore.TransactionIdsAfter(lastCompletedTransactionId, token))
             .Returns<List<ulong>>(transactionIdsAfter);
+
+        A.CallTo(() => transactionStore.Newest(token))
+            .Returns<ulong>(transactionIdsAfter.Last());
 
         foreach (var transactionId in transactionIdsAfter)
         {
@@ -103,20 +106,20 @@ public class ImportStarterTest : IClassFixture<DatabaseFixture>
             addressFullImport: addressFullImport,
             addressChangesImport: addressChangesImport);
 
-        await importStarter.Start().ConfigureAwait(true);
+        await importStarter.Start(token).ConfigureAwait(true);
 
         // This is a bit ugly, we just want to make sure that each transaction id is used to call address changes.
         foreach (var tId in transactionIdsAfter)
         {
             A.CallTo(() => addressChangesImport
-                     .Start(tId, tId, default))
+                     .Start(tId, tId, token))
                 .MustHaveHappenedOnceExactly();
 
             lastCompletedTransactionId = tId;
         }
 
         A.CallTo(() => addressFullImport
-                 .Start(lastCompletedTransactionId, default))
+                 .Start(lastCompletedTransactionId, token))
             .MustNotHaveHappened();
     }
 
