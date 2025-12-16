@@ -73,7 +73,7 @@ public class ImportStarterTest : IClassFixture<DatabaseFixture>
     [Trait("Category", "Unit")]
     public async Task Has_previous_transaction_id_do_change_import()
     {
-        var source = new CancellationTokenSource();
+        using var source = new CancellationTokenSource();
         var token = source.Token;
 
         var logger = A.Fake<ILogger<ImportStarter>>();

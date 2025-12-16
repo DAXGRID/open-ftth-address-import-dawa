@@ -5,7 +5,7 @@ namespace OpenFTTH.AddressImport.Dawa;
 
 internal class PostgresTransactionStore : ITransactionStore
 {
-    private DawaClient _dawaClient;
+    private DataForsyningenClient _dawaClient;
     private string _connectionString;
     private const string _schemaName = "address_import";
     private const string _tableName = "transaction_store";
@@ -13,7 +13,7 @@ internal class PostgresTransactionStore : ITransactionStore
     public PostgresTransactionStore(HttpClient httpClient, Settings settings)
     {
         _connectionString = settings.EventStoreConnectionString;
-        _dawaClient = new DawaClient(httpClient);
+        _dawaClient = new DataForsyningenClient(httpClient);
     }
 
     public async Task<ulong?> LastCompleted(CancellationToken cancellationToken = default)

@@ -7,7 +7,7 @@ namespace OpenFTTH.AddressImport.Dawa;
 
 internal sealed class AddressChangesImportDawa : IAddressChangesImport
 {
-    private readonly DawaClient _dawaClient;
+    private readonly DataForsyningenClient _dawaClient;
     private readonly ILogger<AddressFullImportDawa> _logger;
     private readonly IEventStore _eventStore;
 
@@ -16,7 +16,7 @@ internal sealed class AddressChangesImportDawa : IAddressChangesImport
         ILogger<AddressFullImportDawa> logger,
         IEventStore eventStore)
     {
-        _dawaClient = new DawaClient(httpClient);
+        _dawaClient = new DataForsyningenClient(httpClient);
         _logger = logger;
         _eventStore = eventStore;
     }
