@@ -5,9 +5,8 @@ namespace OpenFTTH.AddressImport.Dawa;
 
 internal class PostgresTransactionStore : ITransactionStore
 {
-    private DataForsyningenClient _dawaClient;
     private string _connectionString;
-    private const string _schemaName = "address_import";
+    private const string _schemaName = "datafordeleren_address_import";
     private const string _tableName = "transaction_store";
 
     public PostgresTransactionStore(HttpClient httpClient, Settings settings)
@@ -16,12 +15,12 @@ internal class PostgresTransactionStore : ITransactionStore
         _dawaClient = new DataForsyningenClient(httpClient);
     }
 
-    public async Task<ulong?> LastCompleted(CancellationToken cancellationToken = default)
+    public async Task<DateTime?> LastCompleted(CancellationToken cancellationToken = default)
     {
         const string queryLastCompleted =
-            @$"SELECT transaction_id
+            @$"SELECT timestamp
                FROM {_schemaName}.{_tableName}
-               ORDER BY transaction_id DESC
+               ORDER BY id DESC
                LIMIT 1";
 
         using var connection = new NpgsqlConnection(_connectionString);
@@ -30,49 +29,29 @@ internal class PostgresTransactionStore : ITransactionStore
 
         var result = await cmd
             .ExecuteScalarAsync(cancellationToken)
-            .ConfigureAwait(false) as long?;
+            .ConfigureAwait(false) as DateTime?;
 
-        return result is not null ? (ulong)result : null;
+        return result is not null ? result : null;
     }
 
-    public async Task<List<ulong>> TransactionIdsAfter(ulong transactionId, CancellationToken cancellationToken = default)
+    public async Task<DateTime> Newest(CancellationToken cancellationToken = default)
     {
-        var transactions = await _dawaClient
-            .GetAllTransactionsAfter(transactionId, cancellationToken)
-            .ConfigureAwait(false);
-
-        return transactions.Select(x => x.Id).ToList();
+        return DateTime.UtcNow;
     }
 
-    public async Task<ulong> Newest(CancellationToken cancellationToken = default)
+    public async Task<bool> Store(DateTime timestamp)
     {
-        var transaction = await _dawaClient
-            .GetLatestTransactionAsync(cancellationToken)
-            .ConfigureAwait(false);
-
-        return transaction.Id;
-    }
-
-    public async Task<bool> Store(ulong transactionId)
-    {
-        if (transactionId > long.MaxValue)
-        {
-            throw new ArgumentException(
-                $"Cannot store value bigger than {long.MaxValue}",
-                nameof(transactionId));
-        }
-
         const string insertSql =
             $@"INSERT INTO {_schemaName}.{_tableName} (
-                 transaction_id)
+                 timestamp)
                VALUES (
-                 @transactionId)";
+                 @timestamp)";
 
         using var connection = new NpgsqlConnection(_connectionString);
         await connection.OpenAsync().ConfigureAwait(false);
 
         using var cmd = new NpgsqlCommand(insertSql, connection);
-        cmd.Parameters.AddWithValue("@transactionId", (long)transactionId);
+        cmd.Parameters.AddWithValue("@timestamp", timestamp);
 
         return (await cmd.ExecuteNonQueryAsync().ConfigureAwait(false)) == 1;
     }
@@ -92,7 +71,7 @@ internal class PostgresTransactionStore : ITransactionStore
                CREATE TABLE {_schemaName}.{_tableName} (
                  id SERIAL PRIMARY KEY,
                  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                 transaction_id BIGINT CHECK (transaction_id > 0));";
+                 timestamp TIMESTAMPTZ NOT NULL);";
 
         using var connection = new NpgsqlConnection(_connectionString);
         await connection.OpenAsync().ConfigureAwait(false);

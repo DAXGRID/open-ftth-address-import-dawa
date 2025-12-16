@@ -7,7 +7,7 @@ namespace OpenFTTH.AddressImport.Dawa;
 
 internal sealed class AddressFullImportDawa : IAddressFullImport
 {
-    private readonly DataForsyningenClient _dawaClient;
+    private readonly DatafordelerClient _dawaClient;
     private readonly ILogger<AddressFullImportDawa> _logger;
     private readonly IEventStore _eventStore;
     private const int _bulkCount = 5000;
