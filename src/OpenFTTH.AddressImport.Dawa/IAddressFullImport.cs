@@ -2,5 +2,5 @@ namespace OpenFTTH.AddressImport.Dawa;
 
 public interface IAddressFullImport
 {
-    Task Start(ulong transactionId, CancellationToken cancellation = default);
+    Task Start(DateTime timestamp, CancellationToken cancellation = default);
 }

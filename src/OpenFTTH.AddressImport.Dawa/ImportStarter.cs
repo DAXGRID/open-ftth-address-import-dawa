@@ -38,90 +38,90 @@ public class ImportStarter
             .ConfigureAwait(false);
 
         _logger.LogInformation("Getting last completed transaction.");
-        var lastCompletedTransactionId = await _transactionStore
+        var lastCompletedDateTime = await _transactionStore
             .LastCompleted(cancellationToken)
             .ConfigureAwait(false);
 
-        if (lastCompletedTransactionId is null)
+        if (lastCompletedDateTime is null)
         {
-            var newestTransactionId = await _transactionStore
+            var newestDateTime = await _transactionStore
                 .Newest(cancellationToken)
                 .ConfigureAwait(false);
 
             _logger.LogInformation(
                 "First run, so we do full import with transaction id: {TransactionId}.",
-                newestTransactionId);
+                newestDateTime);
 
             await _addressFullImport
-                .Start(newestTransactionId, cancellationToken)
+                .Start(newestDateTime, cancellationToken)
                 .ConfigureAwait(false);
 
             _logger.LogInformation(
                 "Storing transaction id: '{TransactionId}'.",
-                newestTransactionId);
+                newestDateTime);
 
             var stored = await _transactionStore
-                .Store(newestTransactionId)
+                .Store(newestDateTime)
                 .ConfigureAwait(false);
 
             if (!stored)
             {
                 throw new InvalidOperationException(
-                    $"Failed storing transaction id: '{newestTransactionId}'");
+                    $"Failed storing transaction id: '{newestDateTime}'");
             }
         }
         else
         {
-            var newestTransactionId = await _transactionStore
-                .Newest(cancellationToken)
-                .ConfigureAwait(false);
+            // var newestTransactionId = await _transactionStore
+            //     .Newest(cancellationToken)
+            //     .ConfigureAwait(false);
 
-            if (newestTransactionId > lastCompletedTransactionId.Value)
-            {
-                var transactionIds = await _transactionStore
-                    .TransactionIdsAfter(lastCompletedTransactionId.Value, cancellationToken)
-                    .ConfigureAwait(false);
+            // if (newestTransactionId > lastCompletedTransactionId.Value)
+            // {
+            //     var transactionIds = await _transactionStore
+            //         .TransactionIdsAfter(lastCompletedTransactionId.Value, cancellationToken)
+            //         .ConfigureAwait(false);
 
-                var lastTransactionId = lastCompletedTransactionId.Value;
-                foreach (var nextTransactionId in transactionIds)
-                {
-                    _logger.LogInformation(
-                        "Starting import from transaction range: {LastTransactionId} - {NextTransactionId}.",
-                        nextTransactionId,
-                        nextTransactionId);
+            //     var lastTransactionId = lastCompletedTransactionId.Value;
+            //     foreach (var nextTransactionId in transactionIds)
+            //     {
+            //         _logger.LogInformation(
+            //             "Starting import from transaction range: {LastTransactionId} - {NextTransactionId}.",
+            //             nextTransactionId,
+            //             nextTransactionId);
 
-                    await _addressChangesImport
-                        .Start(nextTransactionId,
-                               nextTransactionId,
-                               cancellationToken)
-                        .ConfigureAwait(false);
+            //         await _addressChangesImport
+            //             .Start(nextTransactionId,
+            //                    nextTransactionId,
+            //                    cancellationToken)
+            //             .ConfigureAwait(false);
 
-                    _logger.LogInformation(
-                        "Storing transaction id: '{TransactionId}'.",
-                        nextTransactionId);
+            //         _logger.LogInformation(
+            //             "Storing transaction id: '{TransactionId}'.",
+            //             nextTransactionId);
 
-                    var stored = await _transactionStore
-                        .Store(nextTransactionId)
-                        .ConfigureAwait(false);
+            //         var stored = await _transactionStore
+            //             .Store(nextTransactionId)
+            //             .ConfigureAwait(false);
 
-                    if (!stored)
-                    {
-                        throw new InvalidOperationException(
-                            $"Failed storing transaction id: '{nextTransactionId}'");
-                    }
+            //         if (!stored)
+            //         {
+            //             throw new InvalidOperationException(
+            //                 $"Failed storing transaction id: '{nextTransactionId}'");
+            //         }
 
-                    // We update the last completed transaction id to the last completed.
-                    lastTransactionId = nextTransactionId;
-                }
-            }
-            else
-            {
-                _logger.LogInformation(
-                    "No changes in the transaction id, skipping import. {LastTransactionId} - {NewestTransactionId}.",
-                    lastCompletedTransactionId.Value,
-                    newestTransactionId
-                );
-            }
+            //         // We update the last completed transaction id to the last completed.
+            //         lastTransactionId = nextTransactionId;
+            //     }
+            // }
+            // else
+            // {
+            //     _logger.LogInformation(
+            //         "No changes in the transaction id, skipping import. {LastTransactionId} - {NewestTransactionId}.",
+            //         lastCompletedTransactionId.Value,
+            //         newestTransactionId
+            //     );
+            // }
         }
     }
 }

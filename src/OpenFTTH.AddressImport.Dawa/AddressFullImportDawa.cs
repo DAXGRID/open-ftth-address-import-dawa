@@ -23,47 +23,46 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
     }
 
     public async Task Start(
-        ulong transactionId,
+        DateTime dateTime,
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation(
             "Starting full import of post codes using tid '{TransactionId}'.",
-            transactionId);
-        var insertedPostCodesCount = await FullImportPostCodes(
-            transactionId, cancellationToken).ConfigureAwait(false);
+            dateTime);
+        var insertedPostCodesCount = await FullImportPostCodes(dateTime, cancellationToken).ConfigureAwait(false);
         _logger.LogInformation(
             "Finished inserting '{Count}' post codes.", insertedPostCodesCount);
 
         _logger.LogInformation(
             "Starting full import of roads using tid '{TransactionId}'.",
-            transactionId);
+            dateTime);
         var insertedRoadsCount = await FullImportRoads(
-            transactionId, cancellationToken).ConfigureAwait(false);
+            dateTime, cancellationToken).ConfigureAwait(false);
         _logger.LogInformation(
             "Finished inserting '{Count}' roads.", insertedRoadsCount);
 
         _logger.LogInformation(
             "Starting full import of access addresses using tid '{TransactionId}'.",
-            transactionId);
+            dateTime);
         var insertedAccessAddressesCount = await FullImportAccessAdress(
-            transactionId, cancellationToken).ConfigureAwait(false);
+            dateTime, cancellationToken).ConfigureAwait(false);
         _logger.LogInformation(
             "Finished inserting '{Count}' access addresses.", insertedAccessAddressesCount);
 
         _logger.LogInformation(
             "Starting full import of unit addresses using tid '{TransactionId}'.",
-            transactionId);
+            dateTime);
         var insertedUnitAddressesCount = await FullImportUnitAddresses(
-            transactionId, cancellationToken).ConfigureAwait(false);
+            dateTime, cancellationToken).ConfigureAwait(false);
         _logger.LogInformation(
             "Finished inserting '{Count}' unit-addresses.", insertedUnitAddressesCount);
     }
 
     private async Task<int> FullImportRoads(
-        ulong transactionId, CancellationToken cancellationToken)
+        DateTime dateTime, CancellationToken cancellationToken)
     {
         var dawaRoadsAsyncEnumerable = _dawaClient
-            .GetAllRoadsAsync(transactionId, cancellationToken)
+            .GetAllRoadsAsync(DateTime.MinValue, dateTime, DatafordelerRoadStatus.Active, cancellationToken)
             .ConfigureAwait(false);
 
         var addressProjection = _eventStore.Projections.Get<AddressProjection>();
@@ -119,10 +118,10 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
     }
 
     private async Task<int> FullImportPostCodes(
-        ulong transactionId, CancellationToken cancellationToken)
+        DateTime dateTime, CancellationToken cancellationToken)
     {
         var dawaPostCodesAsyncEnumerable = _dawaClient
-            .GetAllPostCodesAsync(transactionId, cancellationToken)
+            .GetAllPostCodesAsync(DateTime.MinValue, dateTime, cancellationToken)
             .ConfigureAwait(false);
 
         var addressProjection = _eventStore.Projections.Get<AddressProjection>();
@@ -176,13 +175,12 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
         return count;
     }
 
-    private async Task<int> FullImportAccessAdress(
-        ulong transactionId, CancellationToken cancellationToken)
+    private async Task<int> FullImportAccessAdress(DateTime dateTime, CancellationToken cancellationToken)
     {
         var addressProjection = _eventStore.Projections.Get<AddressProjection>();
 
         var dawaAccessAddressesAsyncEnumerable = _dawaClient
-            .GetAllAccessAddresses(transactionId, cancellationToken)
+            .GetAllAccessAddresses(DateTime.MinValue, dateTime, DatafordelerAccessAddressStatus.Active, cancellationToken)
             .ConfigureAwait(false);
 
         // Important to be computed outside the loop, the computation is expensive.
@@ -270,13 +268,12 @@ post district code: '{PostDistrictCode}'.",
         return count;
     }
 
-    private async Task<int> FullImportUnitAddresses(
-        ulong transactionId, CancellationToken cancellationToken)
+    private async Task<int> FullImportUnitAddresses(DateTime dateTime, CancellationToken cancellationToken)
     {
         var addressProjection = _eventStore.Projections.Get<AddressProjection>();
 
         var dawaUnitAddresssesAsyncEnumerable = _dawaClient
-            .GetAllUnitAddresses(transactionId, cancellationToken)
+            .GetAllUnitAddresses(DateTime.MinValue, dateTime, DatafordelerUnitAddressStatus.Active, cancellationToken)
             .ConfigureAwait(false);
 
         // Important to be computed outside the loop, the computation is expensive.

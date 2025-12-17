@@ -1,4 +1,3 @@
-using DawaAddress;
 using Npgsql;
 
 namespace OpenFTTH.AddressImport.Dawa;
@@ -12,7 +11,6 @@ internal class PostgresTransactionStore : ITransactionStore
     public PostgresTransactionStore(HttpClient httpClient, Settings settings)
     {
         _connectionString = settings.EventStoreConnectionString;
-        _dawaClient = new DataForsyningenClient(httpClient);
     }
 
     public async Task<DateTime?> LastCompleted(CancellationToken cancellationToken = default)
