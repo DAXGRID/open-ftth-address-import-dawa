@@ -32,9 +32,9 @@ internal class PostgresTransactionStore : ITransactionStore
         return result is not null ? result : null;
     }
 
-    public async Task<DateTime> Newest(CancellationToken cancellationToken = default)
+    public Task<DateTime> Newest(CancellationToken cancellationToken = default)
     {
-        return DateTime.UtcNow;
+        return Task.FromResult(DateTime.UtcNow);
     }
 
     public async Task<bool> Store(DateTime timestamp)
