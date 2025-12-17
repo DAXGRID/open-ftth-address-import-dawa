@@ -36,10 +36,12 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
         _logger.LogInformation(
             "Starting full import of roads using tid '{TransactionId}'.",
             dateTime);
-        var insertedRoadsCount = await FullImportRoads(
-            dateTime, cancellationToken).ConfigureAwait(false);
+        var insertedActiveRoadsCount = await FullImportRoads(
+            dateTime, DatafordelerRoadStatus.Active, cancellationToken).ConfigureAwait(false);
+        var insertedTemporaryRoadsCount = await FullImportRoads(
+            dateTime, DatafordelerRoadStatus.Temporary, cancellationToken).ConfigureAwait(false);
         _logger.LogInformation(
-            "Finished inserting '{Count}' roads.", insertedRoadsCount);
+            "Finished inserting '{Count}' roads.", insertedActiveRoadsCount + insertedTemporaryRoadsCount);
 
         _logger.LogInformation(
             "Starting full import of access addresses using tid '{TransactionId}'.",
@@ -59,10 +61,10 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
     }
 
     private async Task<int> FullImportRoads(
-        DateTime dateTime, CancellationToken cancellationToken)
+        DateTime dateTime, DatafordelerRoadStatus roadStatus, CancellationToken cancellationToken)
     {
         var dawaRoadsAsyncEnumerable = _dawaClient
-            .GetAllRoadsAsync(DateTime.MinValue, dateTime, DatafordelerRoadStatus.Active, cancellationToken)
+            .GetAllRoadsAsync(DateTime.MinValue, dateTime, roadStatus, cancellationToken)
             .ConfigureAwait(false);
 
         var addressProjection = _eventStore.Projections.Get<AddressProjection>();
