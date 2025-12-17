@@ -27,14 +27,14 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation(
-            "Starting full import of post codes using tid '{TransactionId}'.",
+            "Starting full import of post codes using timestamp: '{TimeStamp}'.",
             dateTime);
         var insertedPostCodesCount = await FullImportPostCodes(dateTime, cancellationToken).ConfigureAwait(false);
         _logger.LogInformation(
             "Finished inserting '{Count}' post codes.", insertedPostCodesCount);
 
         _logger.LogInformation(
-            "Starting full import of roads using tid '{TransactionId}'.",
+            "Starting full import of roads using timestamp: '{TimeStamp}'.",
             dateTime);
         var insertedActiveRoadsCount = await FullImportRoads(
             dateTime, DatafordelerRoadStatus.Active, cancellationToken).ConfigureAwait(false);
@@ -44,7 +44,7 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
             "Finished inserting '{Count}' roads.", insertedActiveRoadsCount + insertedTemporaryRoadsCount);
 
         _logger.LogInformation(
-            "Starting full import of access addresses using tid '{TransactionId}'.",
+            "Starting full import of access addresses using timestamp: '{TimeStamp}'.",
             dateTime);
         var insertedAccessAddressesCount = await FullImportAccessAdress(
             dateTime, cancellationToken).ConfigureAwait(false);
@@ -52,7 +52,7 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
             "Finished inserting '{Count}' access addresses.", insertedAccessAddressesCount);
 
         _logger.LogInformation(
-            "Starting full import of unit addresses using tid '{TransactionId}'.",
+            "Starting full import of unit addresses using timestamp: '{TimeStamp}'.",
             dateTime);
         var insertedUnitAddressesCount = await FullImportUnitAddresses(
             dateTime, cancellationToken).ConfigureAwait(false);
