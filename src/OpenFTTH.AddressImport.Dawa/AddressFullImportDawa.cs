@@ -26,6 +26,7 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
         DateTime dateTime,
         CancellationToken cancellationToken = default)
     {
+        // Post codes
         _logger.LogInformation(
             "Starting full import of post codes using timestamp: '{TimeStamp}'.",
             dateTime);
@@ -33,35 +34,58 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
         _logger.LogInformation(
             "Finished inserting '{Count}' post codes.", insertedPostCodesCount);
 
+        // Active roads
         _logger.LogInformation(
-            "Starting full import of roads using timestamp: '{TimeStamp}'.",
+            "Starting full import of Active roads using timestamp: '{TimeStamp}'.",
             dateTime);
         var insertedActiveRoadsCount = await FullImportRoads(
             dateTime, DatafordelerRoadStatus.Active, cancellationToken).ConfigureAwait(false);
+        _logger.LogInformation(
+            "Finished inserting '{Count}' roads.",
+            insertedActiveRoadsCount);
+
+        // Temporary roads
+        _logger.LogInformation(
+            "Starting full import of Temporary roads using timestamp: '{TimeStamp}'.",
+            dateTime);
         var insertedTemporaryRoadsCount = await FullImportRoads(
             dateTime, DatafordelerRoadStatus.Temporary, cancellationToken).ConfigureAwait(false);
         _logger.LogInformation(
-            "Finished inserting '{Count}' roads.", insertedActiveRoadsCount + insertedTemporaryRoadsCount);
+            "Finished inserting '{Count}' roads.", insertedTemporaryRoadsCount);
 
-        _logger.LogInformation(
-            "Starting full import of access addresses using timestamp: '{TimeStamp}'.",
-            dateTime);
+        // Active access addresses
+        _logger.LogInformation("Starting full import of Active access addresses using timestamp: '{TimeStamp}'.", dateTime);
         var insertedActiveAccessAddressesCount = await FullImportAccessAdress(
             dateTime, DatafordelerAccessAddressStatus.Active, cancellationToken).ConfigureAwait(false);
+        _logger.LogInformation(
+            "Finished inserting '{Count}' of Active access addresses.",
+            insertedActiveAccessAddressesCount);
+
+        // Pending access addresses
+        _logger.LogInformation("Starting full import of Pending access addresses using timestamp: '{TimeStamp}'.", dateTime);
         var insertedPendingAccessAddressesCount = await FullImportAccessAdress(
             dateTime, DatafordelerAccessAddressStatus.Pending, cancellationToken).ConfigureAwait(false);
         _logger.LogInformation(
-            "Finished inserting '{Count}' access addresses.", insertedActiveAccessAddressesCount + insertedPendingAccessAddressesCount);
+            "Finished inserting '{Count}' of Pending access addresses.",
+            insertedPendingAccessAddressesCount);
 
+        // Active unit addresses
         _logger.LogInformation(
-            "Starting full import of unit addresses using timestamp: '{TimeStamp}'.",
+            "Starting full import of Active unit addresses using timestamp: '{TimeStamp}'.",
             dateTime);
         var insertedActiveUnitAddressesCount = await FullImportUnitAddresses(
             dateTime, DatafordelerUnitAddressStatus.Active, cancellationToken).ConfigureAwait(false);
+        _logger.LogInformation(
+            "Finished inserting a total '{Count}' of Active unit-addresses.", insertedActiveUnitAddressesCount);
+
+        // Pending unit addresses
+        _logger.LogInformation(
+            "Starting full import of pending unit addresses using timestamp: '{TimeStamp}'.",
+            dateTime);
         var insertedPendingUnitAddressesCount = await FullImportUnitAddresses(
             dateTime, DatafordelerUnitAddressStatus.Pending, cancellationToken).ConfigureAwait(false);
         _logger.LogInformation(
-            "Finished inserting '{Count}' unit-addresses.", insertedActiveUnitAddressesCount + insertedPendingUnitAddressesCount);
+            "Finished inserting a total '{Count}' of Pending unit-addresses.", insertedPendingUnitAddressesCount);
     }
 
     private async Task<int> FullImportRoads(
