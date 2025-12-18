@@ -151,7 +151,7 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
         DateTime dateTime, CancellationToken cancellationToken)
     {
         var dawaPostCodesAsyncEnumerable = _dawaClient
-            .GetAllPostCodesAsync(DateTime.MinValue, dateTime, cancellationToken)
+            .GetAllPostCodesAsync(DateTime.MinValue, dateTime, null, cancellationToken)
             .ConfigureAwait(false);
 
         var addressProjection = _eventStore.Projections.Get<AddressProjection>();
