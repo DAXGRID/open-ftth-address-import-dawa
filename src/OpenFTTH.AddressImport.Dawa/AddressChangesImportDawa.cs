@@ -33,7 +33,7 @@ internal sealed class AddressChangesImportDawa : IAddressChangesImport
 
         // Post codes
         var postCodeChanges = await _dawaClient
-            .GetAllPostCodesAsync(fromTimeStamp, toTimeStamp, cancellationToken)
+            .GetAllPostCodesAsync(fromTimeStamp, toTimeStamp, null, cancellationToken)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
