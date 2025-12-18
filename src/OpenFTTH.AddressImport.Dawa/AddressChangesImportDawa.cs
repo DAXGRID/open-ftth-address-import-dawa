@@ -7,7 +7,7 @@ namespace OpenFTTH.AddressImport.Dawa;
 
 internal sealed class AddressChangesImportDawa : IAddressChangesImport
 {
-    private readonly DataForsyningenClient _dawaClient;
+    private readonly DatafordelerClient _dawaClient;
     private readonly ILogger<AddressFullImportDawa> _logger;
     private readonly IEventStore _eventStore;
 
@@ -16,84 +16,118 @@ internal sealed class AddressChangesImportDawa : IAddressChangesImport
         ILogger<AddressFullImportDawa> logger,
         IEventStore eventStore)
     {
-        _dawaClient = new DataForsyningenClient(httpClient);
+        _dawaClient = new DatafordelerClient(httpClient);
         _logger = logger;
         _eventStore = eventStore;
     }
 
     public async Task Start(
-        ulong fromTransactionId,
-        ulong toTransactionId,
+        DateTime fromTimeStamp,
+        DateTime toTimeStamp,
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation(
-            "Getting changes from '{FromTransactionId} to {ToTransactionId}'.",
-            fromTransactionId,
-            toTransactionId);
+            "Getting changes from '{FromTimeStamp} to {ToTimeStamp}'.",
+            fromTimeStamp,
+            toTimeStamp);
 
+        // Post codes
         var postCodeChanges = await _dawaClient
-            .GetChangesPostCodesAsync(fromTransactionId, toTransactionId, cancellationToken)
+            .GetAllPostCodesAsync(fromTimeStamp, toTimeStamp, cancellationToken)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        // Roads
+        var roadActiveChanges = await _dawaClient
+            .GetAllRoadsAsync(fromTimeStamp, toTimeStamp, DatafordelerRoadStatus.Active, cancellationToken)
             .ToListAsync(cancellationToken).ConfigureAwait(false);
 
-        var roadChanges = await _dawaClient
-            .GetChangesRoadsAsync(fromTransactionId, toTransactionId, cancellationToken)
+        var roadTemporaryChanges = await _dawaClient
+            .GetAllRoadsAsync(fromTimeStamp, toTimeStamp, DatafordelerRoadStatus.Temporary, cancellationToken)
             .ToListAsync(cancellationToken).ConfigureAwait(false);
 
-        var accessAddressChanges = await _dawaClient
-            .GetChangesAccessAddressAsync(fromTransactionId, toTransactionId, cancellationToken)
+        // Access addresses
+        var accessAddressActiveChanges = await _dawaClient
+            .GetAllAccessAddresses(fromTimeStamp, toTimeStamp, DatafordelerAccessAddressStatus.Active,  cancellationToken)
             .ToListAsync(cancellationToken).ConfigureAwait(false);
 
-        var unitAddressChanges = await _dawaClient
-            .GetChangesUnitAddressAsync(fromTransactionId, toTransactionId, cancellationToken)
+        var accessAddressPendingChanges = await _dawaClient
+            .GetAllAccessAddresses(fromTimeStamp, toTimeStamp, DatafordelerAccessAddressStatus.Pending,  cancellationToken)
             .ToListAsync(cancellationToken).ConfigureAwait(false);
 
-        var entityChanges = new List<(ulong sequenceNumber, object data)>();
+        // Unit addresses
+        var unitAddressActiveChanges = await _dawaClient
+            .GetAllUnitAddresses(fromTimeStamp, toTimeStamp, DatafordelerUnitAddressStatus.Active, cancellationToken)
+            .ToListAsync(cancellationToken).ConfigureAwait(false);
+
+        var unitAddressPendingChanges = await _dawaClient
+            .GetAllUnitAddresses(fromTimeStamp, toTimeStamp, DatafordelerUnitAddressStatus.Pending, cancellationToken)
+            .ToListAsync(cancellationToken).ConfigureAwait(false);
+
+        var entityChanges = new List<(DateTime sequenceNumber, object data)>();
 
         foreach (var change in postCodeChanges)
         {
-            entityChanges.Add(new(change.SequenceNumber, change));
+            // We do minimum value to make sure post codes always come first.
+            // We  do now get the timestamp it was updated from Datafordeleren.
+            entityChanges.Add(new(DateTime.MinValue, change));
         }
 
-        foreach (var change in roadChanges)
+        foreach (var change in roadActiveChanges)
         {
-            entityChanges.Add(new(change.SequenceNumber, change));
+            entityChanges.Add(new(change.Updated, change));
         }
 
-        foreach (var change in accessAddressChanges)
+        foreach (var change in roadTemporaryChanges)
         {
-            entityChanges.Add(new(change.SequenceNumber, change));
+            entityChanges.Add(new(change.Updated, change));
         }
 
-        foreach (var change in unitAddressChanges)
+        foreach (var change in accessAddressActiveChanges)
         {
-            entityChanges.Add(new(change.SequenceNumber, change));
+            entityChanges.Add(new(change.Updated, change));
+        }
+
+        foreach (var change in accessAddressPendingChanges)
+        {
+            entityChanges.Add(new(change.Updated, change));
+        }
+
+        foreach (var change in unitAddressActiveChanges)
+        {
+            entityChanges.Add(new(change.Updated, change));
+        }
+
+        foreach (var change in unitAddressPendingChanges)
+        {
+            entityChanges.Add(new(change.Updated, change));
         }
 
         foreach (var entityChange in entityChanges.OrderBy(x => x.sequenceNumber))
         {
             switch (entityChange.data)
             {
-                case DawaEntityChange<DawaPostCode> dawaPostCodeChange:
-                    await ImportPostCodeChange(dawaPostCodeChange).ConfigureAwait(false);
-                    break;
-                case DawaEntityChange<DawaRoad> dawaRoadChange:
-                    await ImportRoadChange(dawaRoadChange).ConfigureAwait(false);
-                    break;
-                case DawaEntityChange<DawaAccessAddress> dawaAccessAddressChange:
-                    await ImportAccessAddressChange(dawaAccessAddressChange).ConfigureAwait(false);
-                    break;
-                case DawaEntityChange<DawaUnitAddress> dawaUnitAddressChange:
-                    await ImportUnitAddressChange(dawaUnitAddressChange).ConfigureAwait(false);
-                    break;
+                // case DawaPostCode dawaPostCodeChange:
+                //     await ImportPostCodeChange(dawaPostCodeChange).ConfigureAwait(false);
+                //     break;
+                // case DawaRoad dawaRoadChange:
+                //     await ImportRoadChange(dawaRoadChange).ConfigureAwait(false);
+                //     break;
+                // case DawaAccessAddress dawaAccessAddressChange:
+                //     await ImportAccessAddressChange(dawaAccessAddressChange).ConfigureAwait(false);
+                //     break;
+                // case DawaEntityChange<DawaUnitAddress> dawaUnitAddressChange:
+                //     await ImportUnitAddressChange(dawaUnitAddressChange).ConfigureAwait(false);
+                //     break;
                 default:
                     throw new ArgumentException($"Unsupported type.");
             }
         }
 
-        _logger.LogInformation("Finished processing a total of {PostCodeChangesCount}.", postCodeChanges.Count);
-        _logger.LogInformation("Finished processing a total of {RoadChangesCount}.", roadChanges.Count);
-        _logger.LogInformation("Finished processing a total of {AccessAddressChanges}.", accessAddressChanges.Count);
-        _logger.LogInformation("Finished processing a total of {UnitAddressChangesCount}.", unitAddressChanges.Count);
+        // _logger.LogInformation("Finished processing a total of {PostCodeChangesCount}.", postCodeChanges.Count);
+        // _logger.LogInformation("Finished processing a total of {RoadChangesCount}.", roadChanges.Count);
+        // _logger.LogInformation("Finished processing a total of {AccessAddressChanges}.", accessAddressChanges.Count);
+        // _logger.LogInformation("Finished processing a total of {UnitAddressChangesCount}.", unitAddressChanges.Count);
     }
 
     private async Task ImportPostCodeChange(DawaEntityChange<DawaPostCode> postCodeChange)
