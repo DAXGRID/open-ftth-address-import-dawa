@@ -110,9 +110,9 @@ internal sealed class AddressChangesImportDawa : IAddressChangesImport
                 case DawaPostCode dawaPostCodeChange:
                     await ImportPostCodeChange(dawaPostCodeChange).ConfigureAwait(false);
                     break;
-                // case DawaRoad dawaRoadChange:
-                //     await ImportRoadChange(dawaRoadChange).ConfigureAwait(false);
-                //     break;
+                case DawaRoad dawaRoadChange:
+                    await ImportRoadChange(dawaRoadChange).ConfigureAwait(false);
+                    break;
                 // case DawaAccessAddress dawaAccessAddressChange:
                 //     await ImportAccessAddressChange(dawaAccessAddressChange).ConfigureAwait(false);
                 //     break;
@@ -227,9 +227,7 @@ internal sealed class AddressChangesImportDawa : IAddressChangesImport
             }
             else
             {
-                throw new InvalidOperationException(
-                    @$"Could not load {nameof(postCodeAR)}
-on {nameof(postCodeId)}: '{postCodeId}'");
+                throw new InvalidOperationException(@$"Could not load {nameof(postCodeAR)} on {nameof(postCodeId)}: '{postCodeId}'");
             }
         }
         else if (operation == DawaEntityChangeOperation.Delete)
@@ -276,18 +274,44 @@ on {nameof(postCodeId)}: '{postCodeId}'");
         }
     }
 
-    private async Task ImportRoadChange(DawaEntityChange<DawaRoad> change)
+    private async Task ImportRoadChange(DawaRoad change)
     {
         var addressProjection = _eventStore.Projections.Get<AddressProjection>();
 
-        if (change.Operation == DawaEntityChangeOperation.Insert)
+        if (!addressProjection.RoadExternalIdIdToId.TryGetValue(change.Id.ToString(), out var roadId))
+        {
+            throw new InvalidOperationException(@$"Could not lookup road on id '{change.Id}'.");
+        }
+
+        var road = _eventStore.Aggregates.Load<RoadAR>(roadId);
+
+        DawaEntityChangeOperation? operation = null;
+
+        if (road is null)
+        {
+            operation = DawaEntityChangeOperation.Insert;
+        }
+        else if (change.Status == DawaRoadStatus.Effective)
+        {
+            operation = DawaEntityChangeOperation.Update;
+        }
+        else if (change.Status == DawaRoadStatus.Discontinued || change.Status == DawaRoadStatus.Canceled)
+        {
+            operation = DawaEntityChangeOperation.Delete;
+        }
+        else
+        {
+            throw new InvalidOperationException($"Could not figure out what to do with the road change with id: Dawa id {change.Id}.");
+        }
+
+        if (operation == DawaEntityChangeOperation.Insert)
         {
             if (addressProjection.RoadExternalIdIdToId
-                .ContainsKey(change.Data.Id.ToString()))
+                .ContainsKey(change.Id.ToString()))
             {
                 _logger.LogWarning(
                     @"Road with official id '{OfficialId}' has already been created.",
-                    change.Data.Id);
+                    change.Id);
 
                 return;
             }
@@ -296,11 +320,11 @@ on {nameof(postCodeId)}: '{postCodeId}'");
 
             var createResult = roadAR.Create(
                 id: Guid.NewGuid(),
-                externalId: change.Data.Id.ToString(),
-                name: change.Data.Name,
-                status: DawaStatusMapper.MapRoadStatus(change.Data.Status),
-                externalCreatedDate: change.Data.Created,
-                externalUpdatedDate: change.Data.Updated);
+                externalId: change.Id.ToString(),
+                name: change.Name,
+                status: DawaStatusMapper.MapRoadStatus(change.Status),
+                externalCreatedDate: change.Created,
+                externalUpdatedDate: change.Updated);
 
             if (createResult.IsSuccess)
             {
@@ -315,15 +339,8 @@ on {nameof(postCodeId)}: '{postCodeId}'");
                     createResult.Errors.First().Message);
             }
         }
-        else if (change.Operation == DawaEntityChangeOperation.Update)
+        else if (operation == DawaEntityChangeOperation.Update)
         {
-            if (!addressProjection.RoadExternalIdIdToId
-                .TryGetValue(change.Data.Id.ToString(), out var roadId))
-            {
-                throw new InvalidOperationException(
-                    $"Could not lookup road on id '{change.Data.Id}'.");
-            }
-
             var roadAR = _eventStore.Aggregates.Load<RoadAR>(roadId);
             if (roadAR is null)
             {
@@ -332,10 +349,10 @@ on {nameof(postCodeId)}: '{postCodeId}'");
             }
 
             var updateResult = roadAR.Update(
-                name: change.Data.Name,
-                externalId: change.Data.Id.ToString(),
-                status: DawaStatusMapper.MapRoadStatus(change.Data.Status),
-                externalUpdatedDate: change.Data.Updated);
+                name: change.Name,
+                externalId: change.Id.ToString(),
+                status: DawaStatusMapper.MapRoadStatus(change.Status),
+                externalUpdatedDate: change.Updated);
 
             if (updateResult.IsSuccess)
             {
@@ -351,20 +368,13 @@ on {nameof(postCodeId)}: '{postCodeId}'");
                 _logger.LogWarning(
                     "Id: {ExternalId}, Error: {ErrorMessage}",
                     error.Message,
-                    change.Data.Id.ToString());
+                    change.Id.ToString());
 
                 return;
             }
         }
-        else if (change.Operation == DawaEntityChangeOperation.Delete)
+        else if (operation == DawaEntityChangeOperation.Delete)
         {
-            if (!addressProjection.RoadExternalIdIdToId
-                .TryGetValue(change.Data.Id.ToString(), out var roadId))
-            {
-                throw new InvalidOperationException(
-                    $"Could not lookup road on id '{change.Data.Id}' for deletion.");
-            }
-
             var roadAR = _eventStore.Aggregates.Load<RoadAR>(roadId);
             if (roadAR is null)
             {
@@ -373,7 +383,7 @@ on {nameof(postCodeId)}: '{postCodeId}'");
             }
 
             var deleteResult = roadAR.Delete(
-                externalUpdatedDate: change.ChangeTime);
+                externalUpdatedDate: change.Updated);
 
             if (deleteResult.IsSuccess)
             {
