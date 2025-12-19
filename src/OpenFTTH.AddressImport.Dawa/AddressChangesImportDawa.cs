@@ -107,9 +107,9 @@ internal sealed class AddressChangesImportDawa : IAddressChangesImport
         {
             switch (entityChange.data)
             {
-                // case DawaPostCode dawaPostCodeChange:
-                //     await ImportPostCodeChange(dawaPostCodeChange).ConfigureAwait(false);
-                //     break;
+                case DawaPostCode dawaPostCodeChange:
+                    await ImportPostCodeChange(dawaPostCodeChange).ConfigureAwait(false);
+                    break;
                 // case DawaRoad dawaRoadChange:
                 //     await ImportRoadChange(dawaRoadChange).ConfigureAwait(false);
                 //     break;
@@ -130,18 +130,44 @@ internal sealed class AddressChangesImportDawa : IAddressChangesImport
         // _logger.LogInformation("Finished processing a total of {UnitAddressChangesCount}.", unitAddressChanges.Count);
     }
 
-    private async Task ImportPostCodeChange(DawaEntityChange<DawaPostCode> postCodeChange)
+    private async Task ImportPostCodeChange(DawaPostCode postCodeChange)
     {
         var addressProjection = _eventStore.Projections.Get<AddressProjection>();
 
-        if (postCodeChange.Operation == DawaEntityChangeOperation.Insert)
+        if (!addressProjection.PostCodeNumberToId.TryGetValue(postCodeChange.Number, out var postCodeId))
+        {
+            throw new InvalidOperationException(@$"Could not lookup postcode on id '{postCodeChange.Number}'.");
+        }
+
+        var postCode = _eventStore.Aggregates.Load<PostCodeAR>(postCodeId);
+
+        DawaEntityChangeOperation? operation = null;
+
+        if (postCode is null)
+        {
+            operation = DawaEntityChangeOperation.Insert;
+        }
+        else if (postCodeChange.Status == DawaPostCodeStatus.Active)
+        {
+            operation = DawaEntityChangeOperation.Update;
+        }
+        else if (postCodeChange.Status == DawaPostCodeStatus.Discontinued)
+        {
+            operation = DawaEntityChangeOperation.Delete;
+        }
+        else
+        {
+            throw new InvalidOperationException("Could not figure out what has happend to the entity.");
+        }
+
+        if (operation == DawaEntityChangeOperation.Insert)
         {
             if (addressProjection.PostCodeNumberToId
-                .ContainsKey(postCodeChange.Data.Number))
+                .ContainsKey(postCodeChange.Number))
             {
                 _logger.LogWarning(
                     "Post code with number '{Number}' has already been created.",
-                    postCodeChange.Data.Number);
+                    postCodeChange.Number);
 
                 return;
             }
@@ -149,10 +175,10 @@ internal sealed class AddressChangesImportDawa : IAddressChangesImport
             var postCodeAR = new PostCodeAR();
             var createResult = postCodeAR.Create(
                 id: Guid.NewGuid(),
-                number: postCodeChange.Data.Number,
-                name: postCodeChange.Data.Name,
-                externalCreatedDate: postCodeChange.ChangeTime,
-                externalUpdatedDate: postCodeChange.ChangeTime);
+                number: postCodeChange.Number,
+                name: postCodeChange.Name,
+                externalCreatedDate: postCodeChange.Created,
+                externalUpdatedDate: postCodeChange.Updated);
 
             if (createResult.IsSuccess)
             {
@@ -167,22 +193,15 @@ internal sealed class AddressChangesImportDawa : IAddressChangesImport
                 throw new InvalidOperationException(error.Message);
             }
         }
-        else if (postCodeChange.Operation == DawaEntityChangeOperation.Update)
+        else if (operation == DawaEntityChangeOperation.Update)
         {
-            if (!addressProjection.PostCodeNumberToId.TryGetValue(
-                    postCodeChange.Data.Number, out var postCodeId))
-            {
-                _logger.LogWarning(
-                    "Could not find id on '{PostNumber}'",
-                    postCodeChange.Data.Number);
-            }
-
             var postCodeAR = _eventStore.Aggregates.Load<PostCodeAR>(postCodeId);
+
             if (postCodeAR is not null)
             {
                 var updateResult = postCodeAR.Update(
-                    name: postCodeChange.Data.Name,
-                    externalUpdatedDate: postCodeChange.ChangeTime);
+                    name: postCodeChange.Name,
+                    externalUpdatedDate: postCodeChange.Updated);
 
                 if (updateResult.IsSuccess)
                 {
@@ -213,21 +232,13 @@ internal sealed class AddressChangesImportDawa : IAddressChangesImport
 on {nameof(postCodeId)}: '{postCodeId}'");
             }
         }
-        else if (postCodeChange.Operation == DawaEntityChangeOperation.Delete)
+        else if (operation == DawaEntityChangeOperation.Delete)
         {
-            if (!addressProjection.PostCodeNumberToId.TryGetValue(
-                    postCodeChange.Data.Number, out var postCodeId))
-            {
-                _logger.LogWarning(
-                    "Could not find id on '{PostNumber}'",
-                    postCodeChange.Data.Number);
-            }
-
             var postCodeAR = _eventStore.Aggregates.Load<PostCodeAR>(postCodeId);
             if (postCodeAR is not null)
             {
                 var deleteResult = postCodeAR.Delete(
-                    externalUpdatedDate: postCodeChange.ChangeTime);
+                    externalUpdatedDate: postCodeChange.Updated);
 
                 if (deleteResult.IsSuccess)
                 {
