@@ -116,9 +116,9 @@ internal sealed class AddressChangesImportDawa : IAddressChangesImport
                 case DawaAccessAddress dawaAccessAddressChange:
                     await ImportAccessAddressChange(dawaAccessAddressChange).ConfigureAwait(false);
                     break;
-                // case DawaEntityChange<DawaUnitAddress> dawaUnitAddressChange:
-                //     await ImportUnitAddressChange(dawaUnitAddressChange).ConfigureAwait(false);
-                //     break;
+                case DawaUnitAddress dawaUnitAddressChange:
+                    await ImportUnitAddressChange(dawaUnitAddressChange).ConfigureAwait(false);
+                    break;
                 default:
                     throw new ArgumentException($"Unsupported type.");
             }
@@ -287,11 +287,11 @@ on {nameof(postCodeId)}: '{postCodeId}'");
 
         DawaEntityChangeOperation? operation = null;
 
-        if (road is null)
+        if (road is null && (change.Status == DawaRoadStatus.Effective || change.Status == DawaRoadStatus.Temporary))
         {
             operation = DawaEntityChangeOperation.Insert;
         }
-        else if (change.Status == DawaRoadStatus.Effective)
+        else if (change.Status == DawaRoadStatus.Effective || change.Status == DawaRoadStatus.Temporary)
         {
             operation = DawaEntityChangeOperation.Update;
         }
@@ -624,33 +624,59 @@ post district code: '{PostDistrictCode}'.",
         }
     }
 
-    private async Task ImportUnitAddressChange(DawaEntityChange<DawaUnitAddress> change)
+    private async Task ImportUnitAddressChange(DawaUnitAddress change)
     {
         var addressProjection = _eventStore.Projections.Get<AddressProjection>();
+
+        if (!addressProjection.UnitAddressExternalIdToId.TryGetValue(change.Id.ToString(), out var unitAddressId))
+        {
+            throw new InvalidOperationException(@$"Could not lookup unit address on external id '{change.Id}'.");
+        }
+
+        var unitAddress = _eventStore.Aggregates.Load<UnitAddressAR>(unitAddressId);
+
+        DawaEntityChangeOperation? operation = null;
+
+        if (unitAddress is null && (change.Status == DawaStatus.Active || change.Status == DawaStatus.Pending))
+        {
+            operation = DawaEntityChangeOperation.Insert;
+        }
+        else if (change.Status == DawaStatus.Active || change.Status == DawaStatus.Pending)
+        {
+            operation = DawaEntityChangeOperation.Update;
+        }
+        else if (change.Status == DawaStatus.Canceled || change.Status == DawaStatus.Canceled)
+        {
+            operation = DawaEntityChangeOperation.Delete;
+        }
+        else
+        {
+            throw new InvalidOperationException($"Could not figure out what to do with the road change with id: Dawa id {change.Id}.");
+        }
 
         // We use the access address ids out here since the operation might be expensive.
         var existingAccessAddressIds = addressProjection.AccessAddressIds;
 
-        if (change.Operation == DawaEntityChangeOperation.Insert)
+        if (operation == DawaEntityChangeOperation.Insert)
         {
             if (addressProjection.UnitAddressExternalIdToId
-                .ContainsKey(change.Data.Id.ToString()))
+                .ContainsKey(change.Id.ToString()))
             {
                 _logger.LogWarning(
                     @"Cannot create unit address
-with offical id '{OfficialId}' since it already has been created.", change.Data.Id);
+with offical id '{OfficialId}' since it already has been created.", change.Id);
 
                 return;
             }
 
             if (!addressProjection.AccessAddressExternalIdToId.TryGetValue(
-                    change.Data.AccessAddressId.ToString(),
+                    change.AccessAddressId.ToString(),
                     out var accessAddressId))
             {
                 _logger.LogWarning(
                     @"Could not find accessAddress using
 official accessAddressId: '{AccessAddressId}'.",
-                    change.Data.AccessAddressId);
+                    change.AccessAddressId);
 
                 return;
             }
@@ -662,7 +688,7 @@ official accessAddressId: '{AccessAddressId}'.",
             {
                 _logger.LogError(
                     "Cannot insert unit address {UnitAddressExternalid} because the access address has been deleted {InternalAccessAddressId}.",
-                    change.Data.Id,
+                    change.Id,
                     accessAddressId);
 
                 return;
@@ -672,13 +698,13 @@ official accessAddressId: '{AccessAddressId}'.",
 
             var createResult = unitAddressAR.Create(
                 id: Guid.NewGuid(),
-                externalId: change.Data.Id.ToString(),
+                externalId: change.Id.ToString(),
                 accessAddressId: accessAddressId,
-                status: DawaStatusMapper.MapUnitAddressStatus(change.Data.Status),
-                floorName: change.Data.FloorName,
-                suiteName: change.Data.SuitName,
-                externalCreatedDate: change.Data.Created,
-                externalUpdatedDate: change.Data.Updated,
+                status: DawaStatusMapper.MapUnitAddressStatus(change.Status),
+                floorName: change.FloorName,
+                suiteName: change.SuitName,
+                externalCreatedDate: change.Created,
+                externalUpdatedDate: change.Updated,
                 existingAccessAddressIds: existingAccessAddressIds,
                 pendingOfficial: false);
 
@@ -694,27 +720,16 @@ official accessAddressId: '{AccessAddressId}'.",
                     createResult.Errors.FirstOrDefault()?.Message);
             }
         }
-        else if (change.Operation == DawaEntityChangeOperation.Update)
+        else if (operation == DawaEntityChangeOperation.Update)
         {
-            if (!addressProjection.UnitAddressExternalIdToId
-                .TryGetValue(change.Data.Id.ToString(), out var unitAddressId))
-            {
-                _logger.LogWarning(
-                    @"Could not find internal unit address id
-using official id '{OfficialId}'.",
-                    change.Data.Id);
-
-                return;
-            }
-
             if (!addressProjection.AccessAddressExternalIdToId.TryGetValue(
-                    change.Data.AccessAddressId.ToString(),
+                    change.AccessAddressId.ToString(),
                     out var accessAddressId))
             {
                 _logger.LogWarning(
                     @"Could not find accessAddress using
 official accessAddressId: '{AccessAddressId}'.",
-                    change.Data.AccessAddressId);
+                    change.AccessAddressId);
 
                 return;
             }
@@ -723,12 +738,12 @@ official accessAddressId: '{AccessAddressId}'.",
                 .Load<UnitAddressAR>(unitAddressId);
 
             var updateResult = unitAddressAR.Update(
-                externalId: change.Data.Id.ToString(),
+                externalId: change.Id.ToString(),
                 accessAddressId: accessAddressId,
-                status: DawaStatusMapper.MapUnitAddressStatus(change.Data.Status),
-                floorName: change.Data.FloorName,
-                suiteName: change.Data.SuitName,
-                externalUpdatedDate: change.Data.Updated,
+                status: DawaStatusMapper.MapUnitAddressStatus(change.Status),
+                floorName: change.FloorName,
+                suiteName: change.SuitName,
+                externalUpdatedDate: change.Updated,
                 existingAccessAddressIds: existingAccessAddressIds,
                 pendingOfficial: false);
 
@@ -758,47 +773,34 @@ official accessAddressId: '{AccessAddressId}'.",
                 }
             }
         }
-        else if (change.Operation == DawaEntityChangeOperation.Delete)
+        else if (operation == DawaEntityChangeOperation.Delete)
         {
-            if (addressProjection.UnitAddressExternalIdToId
-                .TryGetValue(change.Data.Id.ToString(), out var unitAddressId))
+            var unitAddressAR = _eventStore.Aggregates
+                .Load<UnitAddressAR>(unitAddressId);
+
+            var deleteResult = unitAddressAR.Delete(externalUpdatedDate: change.Updated);
+
+            if (deleteResult.IsSuccess)
             {
-                var unitAddressAR = _eventStore.Aggregates
-                    .Load<UnitAddressAR>(unitAddressId);
-
-                var deleteResult = unitAddressAR.Delete(
-                    externalUpdatedDate: change.ChangeTime);
-
-                if (deleteResult.IsSuccess)
-                {
-                    await _eventStore.Aggregates
-                        .StoreAsync(unitAddressAR)
-                        .ConfigureAwait(false);
-                }
-                else
-                {
-                    var error = (UnitAddressError)deleteResult.Errors.First();
-                    if (error.Code == UnitAddressErrorCode
-                        .CANNOT_DELETE_ALREADY_DELETED)
-                    {
-                        // No changes is okay, we just log it.
-                        _logger.LogWarning("{ErrorMessage}", error.Message);
-
-                        return;
-                    }
-                    else
-                    {
-                        throw new InvalidOperationException(error.Message);
-                    }
-                }
+                await _eventStore.Aggregates
+                    .StoreAsync(unitAddressAR)
+                    .ConfigureAwait(false);
             }
             else
             {
-                _logger.LogWarning(
-                    @"Could not find unit address
-using official id '{OfficalId}'. Deletion can therefore not happen.", change.Data.Id);
+                var error = (UnitAddressError)deleteResult.Errors.First();
+                if (error.Code == UnitAddressErrorCode
+                    .CANNOT_DELETE_ALREADY_DELETED)
+                {
+                    // No changes is okay, we just log it.
+                    _logger.LogWarning("{ErrorMessage}", error.Message);
 
-                return;
+                    return;
+                }
+                else
+                {
+                    throw new InvalidOperationException(error.Message);
+                }
             }
         }
         else
