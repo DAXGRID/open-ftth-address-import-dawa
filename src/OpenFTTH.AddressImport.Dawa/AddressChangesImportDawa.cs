@@ -48,11 +48,11 @@ internal sealed class AddressChangesImportDawa : IAddressChangesImport
 
         // Access addresses
         var accessAddressActiveChanges = await _dawaClient
-            .GetAllAccessAddresses(fromTimeStamp, toTimeStamp, DatafordelerAccessAddressStatus.Active,  cancellationToken)
+            .GetAllAccessAddresses(fromTimeStamp, toTimeStamp, DatafordelerAccessAddressStatus.Active, cancellationToken)
             .ToListAsync(cancellationToken).ConfigureAwait(false);
 
         var accessAddressPendingChanges = await _dawaClient
-            .GetAllAccessAddresses(fromTimeStamp, toTimeStamp, DatafordelerAccessAddressStatus.Pending,  cancellationToken)
+            .GetAllAccessAddresses(fromTimeStamp, toTimeStamp, DatafordelerAccessAddressStatus.Pending, cancellationToken)
             .ToListAsync(cancellationToken).ConfigureAwait(false);
 
         // Unit addresses
@@ -113,9 +113,9 @@ internal sealed class AddressChangesImportDawa : IAddressChangesImport
                 case DawaRoad dawaRoadChange:
                     await ImportRoadChange(dawaRoadChange).ConfigureAwait(false);
                     break;
-                // case DawaAccessAddress dawaAccessAddressChange:
-                //     await ImportAccessAddressChange(dawaAccessAddressChange).ConfigureAwait(false);
-                //     break;
+                case DawaAccessAddress dawaAccessAddressChange:
+                    await ImportAccessAddressChange(dawaAccessAddressChange).ConfigureAwait(false);
+                    break;
                 // case DawaEntityChange<DawaUnitAddress> dawaUnitAddressChange:
                 //     await ImportUnitAddressChange(dawaUnitAddressChange).ConfigureAwait(false);
                 //     break;
@@ -280,7 +280,7 @@ on {nameof(postCodeId)}: '{postCodeId}'");
 
         if (!addressProjection.RoadExternalIdIdToId.TryGetValue(change.Id.ToString(), out var roadId))
         {
-            throw new InvalidOperationException(@$"Could not lookup road on id '{change.Id}'.");
+            throw new InvalidOperationException(@$"Could not lookup road on external id '{change.Id}'.");
         }
 
         var road = _eventStore.Aggregates.Load<RoadAR>(roadId);
@@ -415,55 +415,81 @@ on {nameof(postCodeId)}: '{postCodeId}'");
         }
     }
 
-    private async Task ImportAccessAddressChange(DawaEntityChange<DawaAccessAddress> change)
+    private async Task ImportAccessAddressChange(DawaAccessAddress change)
     {
         var addressProjection = _eventStore.Projections.Get<AddressProjection>();
+
+        if (!addressProjection.AccessAddressExternalIdToId.TryGetValue(change.Id.ToString(), out var accessAddressId))
+        {
+            throw new InvalidOperationException(@$"Could not lookup access address on external id '{change.Id}'.");
+        }
+
+        var accessAddress = _eventStore.Aggregates.Load<AccessAddressAR>(accessAddressId);
+
+        DawaEntityChangeOperation? operation = null;
+
+        if (accessAddress is null && (change.Status == DawaStatus.Active || change.Status == DawaStatus.Pending))
+        {
+            operation = DawaEntityChangeOperation.Insert;
+        }
+        else if (change.Status == DawaStatus.Active || change.Status == DawaStatus.Pending)
+        {
+            operation = DawaEntityChangeOperation.Update;
+        }
+        else if (change.Status == DawaStatus.Canceled || change.Status == DawaStatus.Canceled)
+        {
+            operation = DawaEntityChangeOperation.Delete;
+        }
+        else
+        {
+            throw new InvalidOperationException($"Could not figure out what to do with the road change with id: Dawa id {change.Id}.");
+        }
 
         // Important to do this outside since they're expensive computations.
         var existingRoadIds = addressProjection.GetRoadIds();
         var existingPostCodes = addressProjection.GetPostCodeIds();
 
-        if (change.Operation == DawaEntityChangeOperation.Insert)
+        if (operation == DawaEntityChangeOperation.Insert)
         {
             if (!addressProjection.AccessAddressExternalIdToId
-                .ContainsKey(change.Data.Id.ToString()))
+                .ContainsKey(change.Id.ToString()))
             {
                 var accessAddressAR = new AccessAddressAR();
                 if (!addressProjection.PostCodeNumberToId.TryGetValue(
-                        change.Data.PostDistrictCode, out var postCodeId))
+                        change.PostDistrictCode, out var postCodeId))
                 {
                     _logger.LogWarning(
                         @"Could not find id using official
 post district code: '{PostDistrictCode}'.",
-                        change.Data.PostDistrictCode);
+                        change.PostDistrictCode);
 
                     return;
                 }
 
                 if (!addressProjection.RoadExternalIdIdToId.TryGetValue(
-                        change.Data.RoadId.ToString(), out var roadId))
+                        change.RoadId.ToString(), out var roadId))
                 {
                     _logger.LogWarning(
                         "Could not find roadId using official roadId code: '{RoadId}'.",
-                        change.Data.RoadId);
+                        change.RoadId);
 
                     return;
                 }
 
                 var createResult = accessAddressAR.Create(
                     id: Guid.NewGuid(),
-                    externalId: change.Data.Id.ToString(),
-                    externalCreatedDate: change.Data.Created,
-                    externalUpdatedDate: change.Data.Updated,
-                    municipalCode: change.Data.MunicipalCode,
-                    status: DawaStatusMapper.MapAccessAddressStatus(change.Data.Status),
-                    roadCode: change.Data.RoadCode,
-                    houseNumber: change.Data.HouseNumber,
+                    externalId: change.Id.ToString(),
+                    externalCreatedDate: change.Created,
+                    externalUpdatedDate: change.Updated,
+                    municipalCode: change.MunicipalCode,
+                    status: DawaStatusMapper.MapAccessAddressStatus(change.Status),
+                    roadCode: change.RoadCode,
+                    houseNumber: change.HouseNumber,
                     postCodeId: postCodeId,
-                    eastCoordinate: change.Data.EastCoordinate,
-                    northCoordinate: change.Data.NorthCoordinate,
-                    supplementaryTownName: change.Data.SupplementaryTownName,
-                    plotId: change.Data.PlotId,
+                    eastCoordinate: change.EastCoordinate,
+                    northCoordinate: change.NorthCoordinate,
+                    supplementaryTownName: change.SupplementaryTownName,
+                    plotId: change.PlotId,
                     roadId: roadId,
                     existingRoadIds: existingRoadIds,
                     existingPostCodeIds: existingPostCodes,
@@ -485,21 +511,11 @@ post district code: '{PostDistrictCode}'.",
             {
                 _logger.LogInformation(
                     "Access address with internal id: '{Id}' has already been created.",
-                    change.Data.Id);
+                    change.Id);
             }
         }
-        else if (change.Operation == DawaEntityChangeOperation.Update)
+        else if (operation == DawaEntityChangeOperation.Update)
         {
-            if (!addressProjection.AccessAddressExternalIdToId
-                .TryGetValue(change.Data.Id.ToString(), out var accessAddressId))
-            {
-                _logger.LogWarning(
-                    "Could not lookup access address on id {ChangeDataId}.",
-                    change.Data.Id);
-
-                return;
-            }
-
             var accessAddressAR = _eventStore.Aggregates
                 .Load<AccessAddressAR>(accessAddressId);
             if (accessAddressAR is null)
@@ -510,37 +526,37 @@ post district code: '{PostDistrictCode}'.",
             }
 
             if (!addressProjection.PostCodeNumberToId.TryGetValue(
-                    change.Data.PostDistrictCode, out var postCodeId))
+                    change.PostDistrictCode, out var postCodeId))
             {
                 _logger.LogWarning(
                     "Could not find id using official post district code: '{PostDistrictCode}'.",
-                    change.Data.PostDistrictCode);
+                    change.PostDistrictCode);
 
                 return;
             }
 
             if (!addressProjection.RoadExternalIdIdToId.TryGetValue(
-                    change.Data.RoadId.ToString(), out var roadId))
+                    change.RoadId.ToString(), out var roadId))
             {
                 _logger.LogWarning(
                     "Could not find roadId using official roadId code: '{RoadId}'.",
-                    change.Data.RoadId);
+                    change.RoadId);
 
                 return;
             }
 
             var updateResult = accessAddressAR.Update(
-                externalId: change.Data.Id.ToString(),
-                externalUpdatedDate: change.Data.Updated,
-                municipalCode: change.Data.MunicipalCode,
-                status: DawaStatusMapper.MapAccessAddressStatus(change.Data.Status),
-                roadCode: change.Data.RoadCode,
-                houseNumber: change.Data.HouseNumber,
+                externalId: change.Id.ToString(),
+                externalUpdatedDate: change.Updated,
+                municipalCode: change.MunicipalCode,
+                status: DawaStatusMapper.MapAccessAddressStatus(change.Status),
+                roadCode: change.RoadCode,
+                houseNumber: change.HouseNumber,
                 postCodeId: postCodeId,
-                eastCoordinate: change.Data.EastCoordinate,
-                northCoordinate: change.Data.NorthCoordinate,
-                supplementaryTownName: change.Data.SupplementaryTownName,
-                plotId: change.Data.PlotId,
+                eastCoordinate: change.EastCoordinate,
+                northCoordinate: change.NorthCoordinate,
+                supplementaryTownName: change.SupplementaryTownName,
+                plotId: change.PlotId,
                 roadId: roadId,
                 existingRoadIds: existingRoadIds,
                 existingPostCodeIds: existingPostCodes,
@@ -572,17 +588,9 @@ post district code: '{PostDistrictCode}'.",
                 }
             }
         }
-        else if (change.Operation == DawaEntityChangeOperation.Delete)
+        else if (operation == DawaEntityChangeOperation.Delete)
         {
-            if (!addressProjection.AccessAddressExternalIdToId
-                .TryGetValue(change.Data.Id.ToString(), out var accessAddressId))
-            {
-                throw new InvalidOperationException(
-                    $"Could not lookup access address on id '{change.Data.Id}'.");
-            }
-
-            var accessAddressAR = _eventStore.Aggregates
-                .Load<AccessAddressAR>(accessAddressId);
+            var accessAddressAR = _eventStore.Aggregates.Load<AccessAddressAR>(accessAddressId);
             if (accessAddressAR is null)
             {
                 throw new InvalidOperationException(
@@ -590,8 +598,7 @@ post district code: '{PostDistrictCode}'.",
  on id '{accessAddressId}'.");
             }
 
-            var deleteResult = accessAddressAR.Delete(
-                externalUpdatedDate: change.ChangeTime);
+            var deleteResult = accessAddressAR.Delete(externalUpdatedDate: change.Updated);
 
             if (deleteResult.IsSuccess)
             {
