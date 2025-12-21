@@ -72,56 +72,36 @@ public class ImportStarter
         }
         else
         {
-            // var newestTransactionId = await _transactionStore
-            //     .Newest(cancellationToken)
-            //     .ConfigureAwait(false);
+            var newestTransactionId = await _transactionStore
+                .Newest(cancellationToken)
+                .ConfigureAwait(false);
 
-            // if (newestTransactionId > lastCompletedTransactionId.Value)
-            // {
-            //     var transactionIds = await _transactionStore
-            //         .TransactionIdsAfter(lastCompletedTransactionId.Value, cancellationToken)
-            //         .ConfigureAwait(false);
+            var lastTransactionId = lastCompletedDateTime.Value;
 
-            //     var lastTransactionId = lastCompletedTransactionId.Value;
-            //     foreach (var nextTransactionId in transactionIds)
-            //     {
-            //         _logger.LogInformation(
-            //             "Starting import from transaction range: {LastTransactionId} - {NextTransactionId}.",
-            //             nextTransactionId,
-            //             nextTransactionId);
+            _logger.LogInformation(
+                "Starting import from transaction range: {LastTransactionId} - {NextTransactionId}.",
+                lastTransactionId,
+                newestTransactionId);
 
-            //         await _addressChangesImport
-            //             .Start(nextTransactionId,
-            //                    nextTransactionId,
-            //                    cancellationToken)
-            //             .ConfigureAwait(false);
+            await _addressChangesImport
+                .Start(lastTransactionId,
+                       newestTransactionId,
+                       cancellationToken)
+                .ConfigureAwait(false);
 
-            //         _logger.LogInformation(
-            //             "Storing transaction id: '{TransactionId}'.",
-            //             nextTransactionId);
+            _logger.LogInformation(
+                "Storing transaction id: '{TransactionId}'.",
+                newestTransactionId);
 
-            //         var stored = await _transactionStore
-            //             .Store(nextTransactionId)
-            //             .ConfigureAwait(false);
+            var stored = await _transactionStore
+                .Store(newestTransactionId)
+                .ConfigureAwait(false);
 
-            //         if (!stored)
-            //         {
-            //             throw new InvalidOperationException(
-            //                 $"Failed storing transaction id: '{nextTransactionId}'");
-            //         }
-
-            //         // We update the last completed transaction id to the last completed.
-            //         lastTransactionId = nextTransactionId;
-            //     }
-            // }
-            // else
-            // {
-            //     _logger.LogInformation(
-            //         "No changes in the transaction id, skipping import. {LastTransactionId} - {NewestTransactionId}.",
-            //         lastCompletedTransactionId.Value,
-            //         newestTransactionId
-            //     );
-            // }
+            if (!stored)
+            {
+                throw new InvalidOperationException(
+                    $"Failed storing transaction id: '{newestTransactionId}'");
+            }
         }
     }
 }
