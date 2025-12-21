@@ -72,35 +72,33 @@ public class ImportStarter
         }
         else
         {
-            var newestTransactionId = await _transactionStore
+            var newestDateTime = await _transactionStore
                 .Newest(cancellationToken)
                 .ConfigureAwait(false);
 
-            var lastTransactionId = lastCompletedDateTime.Value;
-
             _logger.LogInformation(
-                "Starting import from transaction range: {LastTransactionId} - {NextTransactionId}.",
-                lastTransactionId,
-                newestTransactionId);
+                "Starting import from date time range: {LastCompletedDateTime} - {NewestDateTime}.",
+                lastCompletedDateTime.Value,
+                newestDateTime);
 
             await _addressChangesImport
-                .Start(lastTransactionId,
-                       newestTransactionId,
+                .Start(lastCompletedDateTime.Value,
+                       newestDateTime,
                        cancellationToken)
                 .ConfigureAwait(false);
 
             _logger.LogInformation(
-                "Storing transaction id: '{TransactionId}'.",
-                newestTransactionId);
+                "Storing datetime: '{DateTime}'.",
+                newestDateTime);
 
             var stored = await _transactionStore
-                .Store(newestTransactionId)
+                .Store(newestDateTime)
                 .ConfigureAwait(false);
 
             if (!stored)
             {
                 throw new InvalidOperationException(
-                    $"Failed storing transaction id: '{newestTransactionId}'");
+                    $"Failed storing date time: '{newestDateTime}'");
             }
         }
     }
