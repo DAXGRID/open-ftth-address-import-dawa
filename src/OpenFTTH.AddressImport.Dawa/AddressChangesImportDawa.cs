@@ -124,10 +124,16 @@ internal sealed class AddressChangesImportDawa : IAddressChangesImport
             }
         }
 
-        // _logger.LogInformation("Finished processing a total of {PostCodeChangesCount}.", postCodeChanges.Count);
-        // _logger.LogInformation("Finished processing a total of {RoadChangesCount}.", roadChanges.Count);
-        // _logger.LogInformation("Finished processing a total of {AccessAddressChanges}.", accessAddressChanges.Count);
-        // _logger.LogInformation("Finished processing a total of {UnitAddressChangesCount}.", unitAddressChanges.Count);
+        _logger.LogInformation("Finished processing a total of {PostCodeChangesCount}.", postCodeChanges.Count);
+
+        _logger.LogInformation("Finished processing a total of {ActiveRoadChangesCount}.", roadActiveChanges.Count);
+        _logger.LogInformation("Finished processing a total of {TemporaryRoadChangesCount}.", roadTemporaryChanges.Count);
+
+        _logger.LogInformation("Finished processing a total of {ActiveAccessAddressChanges}.", accessAddressActiveChanges.Count);
+        _logger.LogInformation("Finished processing a total of {PendingAccessAddressChanges}.", accessAddressPendingChanges.Count);
+
+        _logger.LogInformation("Finished processing a total of {ActiveUnitAddressChangesCount}.", unitAddressActiveChanges.Count);
+        _logger.LogInformation("Finished processing a total of {PendingUnitAddressChangesCount}.", unitAddressPendingChanges.Count);
     }
 
     private async Task ImportPostCodeChange(DawaPostCode postCodeChange)
