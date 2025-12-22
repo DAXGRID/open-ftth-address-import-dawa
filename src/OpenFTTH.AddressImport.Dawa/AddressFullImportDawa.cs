@@ -41,7 +41,7 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
         var insertedActiveRoadsCount = await FullImportRoads(
             dateTime, DatafordelerRoadStatus.Active, cancellationToken).ConfigureAwait(false);
         _logger.LogInformation(
-            "Finished inserting '{Count}' roads.",
+            "Finished inserting '{Count}' active roads.",
             insertedActiveRoadsCount);
 
         // Temporary roads
@@ -51,7 +51,7 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
         var insertedTemporaryRoadsCount = await FullImportRoads(
             dateTime, DatafordelerRoadStatus.Temporary, cancellationToken).ConfigureAwait(false);
         _logger.LogInformation(
-            "Finished inserting '{Count}' roads.", insertedTemporaryRoadsCount);
+            "Finished inserting '{Count}' temporary roads.", insertedTemporaryRoadsCount);
 
         // Active access addresses
         _logger.LogInformation("Starting full import of Active access addresses using timestamp: '{TimeStamp}'.", dateTime);
@@ -218,6 +218,7 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
         var existingPostCodeIds = addressProjection.GetPostCodeIds();
         var officialAccessAddressIds = addressProjection.AccessAddressExternalIdToId;
 
+        var insertedIds = new HashSet<Guid>();
         var count = 0;
         var aggregates = new List<AccessAddressAR>();
         await foreach (var dawaAccessAddress in dawaAccessAddressesAsyncEnumerable)
@@ -230,11 +231,10 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
                 aggregates.Clear();
             }
 
-            if (officialAccessAddressIds.ContainsKey(dawaAccessAddress.Id.ToString()))
+            if (insertedIds.Contains(dawaAccessAddress.Id))
             {
-                _logger.LogDebug(
-                    @"Access address with official id: '{DawaAccessAddressOfficialId}'
-has already been created.",
+                _logger.LogWarning(
+                    "Access address with official id: '{DawaAccessAddressOfficialId}' has already been created.",
                     dawaAccessAddress.Id);
                 continue;
             }
@@ -282,6 +282,7 @@ post district code: '{PostDistrictCode}'.",
             {
                 count++;
                 aggregates.Add(accessAddressAR);
+                insertedIds.Add(dawaAccessAddress.Id);
             }
             else
             {
@@ -310,6 +311,7 @@ post district code: '{PostDistrictCode}'.",
         var existingAccessAddressIds = addressProjection.AccessAddressIds;
         var unitAddressOfficialIds = addressProjection.UnitAddressExternalIdToId;
 
+        var insertedIds = new HashSet<Guid>();
         var count = 0;
         var aggregates = new List<UnitAddressAR>();
         await foreach (var dawaUnitAddress in dawaUnitAddresssesAsyncEnumerable)
@@ -322,11 +324,10 @@ post district code: '{PostDistrictCode}'.",
                 aggregates.Clear();
             }
 
-            if (unitAddressOfficialIds.ContainsKey(dawaUnitAddress.Id.ToString()))
+            if (insertedIds.Contains(dawaUnitAddress.Id))
             {
-                _logger.LogDebug(
-                    @"Unit address with official id: '{DawaUnitAddressOfficialId}'
-has already been created.",
+                _logger.LogWarning(
+                    "Unit address with official id: '{DawaUnitAddressOfficialId}' has already been created.",
                     dawaUnitAddress.Id);
                 continue;
             }
@@ -359,6 +360,7 @@ has already been created.",
             {
                 count++;
                 aggregates.Add(unitAddressAR);
+                insertedIds.Add(dawaUnitAddress.Id);
             }
             else
             {
