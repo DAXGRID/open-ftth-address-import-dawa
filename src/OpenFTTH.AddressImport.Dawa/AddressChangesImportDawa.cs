@@ -10,13 +10,14 @@ internal sealed class AddressChangesImportDawa : IAddressChangesImport
     private readonly DatafordelerClient _dawaClient;
     private readonly ILogger<AddressFullImportDawa> _logger;
     private readonly IEventStore _eventStore;
+    private const string _apiKey = "";
 
     public AddressChangesImportDawa(
         HttpClient httpClient,
         ILogger<AddressFullImportDawa> logger,
         IEventStore eventStore)
     {
-        _dawaClient = new DatafordelerClient(httpClient);
+        _dawaClient = new DatafordelerClient(httpClient, _apiKey);
         _logger = logger;
         _eventStore = eventStore;
     }
@@ -48,20 +49,20 @@ internal sealed class AddressChangesImportDawa : IAddressChangesImport
 
         // Access addresses
         var accessAddressActiveChanges = await _dawaClient
-            .GetAllAccessAddresses(fromTimeStamp, toTimeStamp, DatafordelerAccessAddressStatus.Active, cancellationToken)
+            .GetAllAccessAddressesAsync(fromTimeStamp, toTimeStamp, DatafordelerAccessAddressStatus.Active, cancellationToken)
             .ToListAsync(cancellationToken).ConfigureAwait(false);
 
         var accessAddressPendingChanges = await _dawaClient
-            .GetAllAccessAddresses(fromTimeStamp, toTimeStamp, DatafordelerAccessAddressStatus.Pending, cancellationToken)
+            .GetAllAccessAddressesAsync(fromTimeStamp, toTimeStamp, DatafordelerAccessAddressStatus.Pending, cancellationToken)
             .ToListAsync(cancellationToken).ConfigureAwait(false);
 
         // Unit addresses
         var unitAddressActiveChanges = await _dawaClient
-            .GetAllUnitAddresses(fromTimeStamp, toTimeStamp, DatafordelerUnitAddressStatus.Active, cancellationToken)
+            .GetAllUnitAddressesAsync(fromTimeStamp, toTimeStamp, DatafordelerUnitAddressStatus.Active, cancellationToken)
             .ToListAsync(cancellationToken).ConfigureAwait(false);
 
         var unitAddressPendingChanges = await _dawaClient
-            .GetAllUnitAddresses(fromTimeStamp, toTimeStamp, DatafordelerUnitAddressStatus.Pending, cancellationToken)
+            .GetAllUnitAddressesAsync(fromTimeStamp, toTimeStamp, DatafordelerUnitAddressStatus.Pending, cancellationToken)
             .ToListAsync(cancellationToken).ConfigureAwait(false);
 
         var entityChanges = new List<(DateTime sequenceNumber, object data)>();

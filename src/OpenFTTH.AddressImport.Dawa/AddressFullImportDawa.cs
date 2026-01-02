@@ -11,13 +11,14 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
     private readonly ILogger<AddressFullImportDawa> _logger;
     private readonly IEventStore _eventStore;
     private const int _bulkCount = 5000;
+    private const string _apiKey = "";
 
     public AddressFullImportDawa(
         HttpClient httpClient,
         ILogger<AddressFullImportDawa> logger,
         IEventStore eventStore)
     {
-        _dawaClient = new(httpClient);
+        _dawaClient = new(httpClient, _apiKey);
         _logger = logger;
         _eventStore = eventStore;
     }
@@ -30,43 +31,25 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
         _logger.LogInformation(
             "Starting full import of post codes using timestamp: '{TimeStamp}'.",
             dateTime);
-        var insertedPostCodesCount = await FullImportPostCodes(dateTime, cancellationToken).ConfigureAwait(false);
+        var insertedPostCodesCount = await FullImportPostCodes(cancellationToken).ConfigureAwait(false);
         _logger.LogInformation(
             "Finished inserting '{Count}' post codes.", insertedPostCodesCount);
 
-        // Active roads
+        // Active and temporary roads
         _logger.LogInformation(
-            "Starting full import of Active roads using timestamp: '{TimeStamp}'.",
+            "Starting full import of Active and temporary roads using timestamp: '{TimeStamp}'.",
             dateTime);
-        var insertedActiveRoadsCount = await FullImportRoads(
-            dateTime, DatafordelerRoadStatus.Active, cancellationToken).ConfigureAwait(false);
+        var insertedActiveRoadsCount = await FullImportRoads(new () { DawaRoadStatus.Effective,  DawaRoadStatus.Temporary }, cancellationToken).ConfigureAwait(false);
         _logger.LogInformation(
-            "Finished inserting '{Count}' active roads.",
+            "Finished inserting '{Count}' active and temporary roads.",
             insertedActiveRoadsCount);
 
-        // Temporary roads
-        _logger.LogInformation(
-            "Starting full import of Temporary roads using timestamp: '{TimeStamp}'.",
-            dateTime);
-        var insertedTemporaryRoadsCount = await FullImportRoads(
-            dateTime, DatafordelerRoadStatus.Temporary, cancellationToken).ConfigureAwait(false);
-        _logger.LogInformation(
-            "Finished inserting '{Count}' temporary roads.", insertedTemporaryRoadsCount);
-
-        // Active access addresses
-        _logger.LogInformation("Starting full import of Active access addresses using timestamp: '{TimeStamp}'.", dateTime);
-        var insertedActiveAccessAddressesCount = await FullImportAccessAdress(
-            dateTime, DatafordelerAccessAddressStatus.Active, cancellationToken).ConfigureAwait(false);
-        _logger.LogInformation(
-            "Finished inserting '{Count}' of Active access addresses.",
-            insertedActiveAccessAddressesCount);
-
-        // Pending access addresses
-        _logger.LogInformation("Starting full import of Pending access addresses using timestamp: '{TimeStamp}'.", dateTime);
+        // Active and pending access addresses
+        _logger.LogInformation("Starting full import of active and pending access addresses using timestamp: '{TimeStamp}'.", dateTime);
         var insertedPendingAccessAddressesCount = await FullImportAccessAdress(
-            dateTime, DatafordelerAccessAddressStatus.Pending, cancellationToken).ConfigureAwait(false);
+            new() { DawaStatus.Active, DawaStatus.Pending }, cancellationToken).ConfigureAwait(false);
         _logger.LogInformation(
-            "Finished inserting '{Count}' of Pending access addresses.",
+            "Finished inserting '{Count}' of active and pending access addresses.",
             insertedPendingAccessAddressesCount);
 
         // Active unit addresses
@@ -74,25 +57,16 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
             "Starting full import of Active unit addresses using timestamp: '{TimeStamp}'.",
             dateTime);
         var insertedActiveUnitAddressesCount = await FullImportUnitAddresses(
-            dateTime, DatafordelerUnitAddressStatus.Active, cancellationToken).ConfigureAwait(false);
+            new() { DawaStatus.Active, DawaStatus.Pending }, cancellationToken).ConfigureAwait(false);
         _logger.LogInformation(
-            "Finished inserting a total '{Count}' of Active unit-addresses.", insertedActiveUnitAddressesCount);
-
-        // Pending unit addresses
-        _logger.LogInformation(
-            "Starting full import of pending unit addresses using timestamp: '{TimeStamp}'.",
-            dateTime);
-        var insertedPendingUnitAddressesCount = await FullImportUnitAddresses(
-            dateTime, DatafordelerUnitAddressStatus.Pending, cancellationToken).ConfigureAwait(false);
-        _logger.LogInformation(
-            "Finished inserting a total '{Count}' of Pending unit-addresses.", insertedPendingUnitAddressesCount);
+            "Finished inserting a total '{Count}' of active and pending unit-addresses.", insertedActiveUnitAddressesCount);
     }
 
     private async Task<int> FullImportRoads(
-        DateTime dateTime, DatafordelerRoadStatus roadStatus, CancellationToken cancellationToken)
+        HashSet<DawaRoadStatus> includedStatuses, CancellationToken cancellationToken)
     {
         var dawaRoadsAsyncEnumerable = _dawaClient
-            .GetAllRoadsAsync(DateTime.MinValue, dateTime, roadStatus, cancellationToken)
+            .GetAllRoadsAsync(includedStatuses, cancellationToken)
             .ConfigureAwait(false);
 
         var addressProjection = _eventStore.Projections.Get<AddressProjection>();
@@ -147,11 +121,10 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
         return count;
     }
 
-    private async Task<int> FullImportPostCodes(
-        DateTime dateTime, CancellationToken cancellationToken)
+    private async Task<int> FullImportPostCodes(CancellationToken cancellationToken)
     {
         var dawaPostCodesAsyncEnumerable = _dawaClient
-            .GetAllPostCodesAsync(DateTime.MinValue, dateTime, null, cancellationToken)
+            .GetAllPostCodesAsync(cancellationToken)
             .ConfigureAwait(false);
 
         var addressProjection = _eventStore.Projections.Get<AddressProjection>();
@@ -205,12 +178,12 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
         return count;
     }
 
-    private async Task<int> FullImportAccessAdress(DateTime dateTime, DatafordelerAccessAddressStatus status, CancellationToken cancellationToken)
+    private async Task<int> FullImportAccessAdress(HashSet<DawaStatus> includedStatuses, CancellationToken cancellationToken)
     {
         var addressProjection = _eventStore.Projections.Get<AddressProjection>();
 
         var dawaAccessAddressesAsyncEnumerable = _dawaClient
-            .GetAllAccessAddresses(DateTime.MinValue, dateTime, status, cancellationToken)
+            .GetAllAccessAddressesAsync(includedStatuses, cancellationToken)
             .ConfigureAwait(false);
 
         // Important to be computed outside the loop, the computation is expensive.
@@ -299,12 +272,12 @@ post district code: '{PostDistrictCode}'.",
         return count;
     }
 
-    private async Task<int> FullImportUnitAddresses(DateTime dateTime, DatafordelerUnitAddressStatus status, CancellationToken cancellationToken)
+    private async Task<int> FullImportUnitAddresses(HashSet<DawaStatus> includedStatuses, CancellationToken cancellationToken)
     {
         var addressProjection = _eventStore.Projections.Get<AddressProjection>();
 
         var dawaUnitAddresssesAsyncEnumerable = _dawaClient
-            .GetAllUnitAddresses(DateTime.MinValue, dateTime, status, cancellationToken)
+            .GetAllUnitAddressesAsync(includedStatuses, cancellationToken)
             .ConfigureAwait(false);
 
         // Important to be computed outside the loop, the computation is expensive.
