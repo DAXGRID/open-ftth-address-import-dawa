@@ -11,14 +11,14 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
     private readonly ILogger<AddressFullImportDawa> _logger;
     private readonly IEventStore _eventStore;
     private const int _bulkCount = 5000;
-    private const string _apiKey = "";
 
     public AddressFullImportDawa(
         HttpClient httpClient,
         ILogger<AddressFullImportDawa> logger,
-        IEventStore eventStore)
+        IEventStore eventStore,
+        Settings settings)
     {
-        _dawaClient = new(httpClient, _apiKey);
+        _dawaClient = new(httpClient, settings.DatafordelerApiKey);
         _logger = logger;
         _eventStore = eventStore;
     }

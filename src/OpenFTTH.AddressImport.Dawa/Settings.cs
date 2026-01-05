@@ -7,8 +7,11 @@ internal sealed record Settings
     [JsonPropertyName("eventStoreConnectionString")]
     public string EventStoreConnectionString { get; init; }
 
+    [JsonPropertyName("datafordelerApiKey")]
+    public string DatafordelerApiKey { get; init; }
+
     [JsonConstructor]
-    public Settings(string eventStoreConnectionString)
+    public Settings(string eventStoreConnectionString, string datafordelerApiKey)
     {
         if (string.IsNullOrWhiteSpace(eventStoreConnectionString))
         {
@@ -17,6 +20,14 @@ internal sealed record Settings
                 nameof(eventStoreConnectionString));
         }
 
+        if (string.IsNullOrWhiteSpace(datafordelerApiKey))
+        {
+            throw new ArgumentException(
+                "Cannot be null, empty or whitespace",
+                nameof(datafordelerApiKey));
+        }
+
         EventStoreConnectionString = eventStoreConnectionString;
+        DatafordelerApiKey = datafordelerApiKey;
     }
 }
