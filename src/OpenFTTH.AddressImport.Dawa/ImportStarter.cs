@@ -32,11 +32,6 @@ public class ImportStarter
         // Init transaction store if not exists
         await _transactionStore.Init().ConfigureAwait(false);
 
-        _logger.LogInformation("Starting to dehydrate projections.");
-        await _eventStore
-            .DehydrateProjectionsAsync(cancellationToken)
-            .ConfigureAwait(false);
-
         _logger.LogInformation("Getting last completed transaction.");
         var lastCompletedDateTime = await _transactionStore
             .LastCompleted(cancellationToken)
@@ -72,6 +67,11 @@ public class ImportStarter
         }
         else
         {
+            _logger.LogInformation("Starting to dehydrate projections.");
+            await _eventStore
+                .DehydrateProjectionsAsync(cancellationToken)
+                .ConfigureAwait(false);
+
             var newestDateTime = await _transactionStore
                 .Newest(cancellationToken)
                 .ConfigureAwait(false);

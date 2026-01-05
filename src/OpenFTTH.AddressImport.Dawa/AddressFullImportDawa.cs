@@ -27,6 +27,15 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
         DateTime dateTime,
         CancellationToken cancellationToken = default)
     {
+        var latestGenerationNumber = await _dawaClient.LatestGenerationNumberCurrentTotalDownloadAsync(cancellationToken).ConfigureAwait(false);
+
+        if (latestGenerationNumber is null)
+        {
+            throw new InvalidOperationException("Not all generation numbers are equal, cannot do full import.");
+        }
+
+        _logger.LogInformation("Found latest {GenerationId} from current generation total download", latestGenerationNumber);
+
         // Post codes
         _logger.LogInformation(
             "Starting full import of post codes using timestamp: '{TimeStamp}'.",
@@ -65,16 +74,12 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
     private async Task<int> FullImportRoads(
         HashSet<DawaRoadStatus> includedStatuses, CancellationToken cancellationToken)
     {
-        var dawaRoadsAsyncEnumerable = _dawaClient
-            .GetAllRoadsAsync(includedStatuses, cancellationToken)
-            .ConfigureAwait(false);
-
         var addressProjection = _eventStore.Projections.Get<AddressProjection>();
         var existingRoadOfficialIds = addressProjection.RoadExternalIdIdToId;
 
         var count = 0;
         var aggregates = new List<RoadAR>();
-        await foreach (var dawaRoad in dawaRoadsAsyncEnumerable)
+        await foreach (var dawaRoad in _dawaClient.GetAllRoadsAsync(includedStatuses, cancellationToken).ConfigureAwait(false))
         {
             if (aggregates.Count == _bulkCount)
             {
@@ -123,16 +128,14 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
 
     private async Task<int> FullImportPostCodes(CancellationToken cancellationToken)
     {
-        var dawaPostCodesAsyncEnumerable = _dawaClient
-            .GetAllPostCodesAsync(cancellationToken)
-            .ConfigureAwait(false);
+;
 
         var addressProjection = _eventStore.Projections.Get<AddressProjection>();
         var existingOfficialPostCodeNumbers = addressProjection.PostCodeNumberToId;
 
         var count = 0;
         var aggregates = new List<PostCodeAR>();
-        await foreach (var dawaPostCode in dawaPostCodesAsyncEnumerable)
+        await foreach (var dawaPostCode in _dawaClient .GetAllPostCodesAsync(cancellationToken).ConfigureAwait(false))
         {
             if (aggregates.Count == _bulkCount)
             {
@@ -182,10 +185,6 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
     {
         var addressProjection = _eventStore.Projections.Get<AddressProjection>();
 
-        var dawaAccessAddressesAsyncEnumerable = _dawaClient
-            .GetAllAccessAddressesAsync(includedStatuses, cancellationToken)
-            .ConfigureAwait(false);
-
         // Important to be computed outside the loop, the computation is expensive.
         var existingRoadIds = addressProjection.GetRoadIds();
         var existingPostCodeIds = addressProjection.GetPostCodeIds();
@@ -194,7 +193,7 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
         var insertedIds = new HashSet<Guid>();
         var count = 0;
         var aggregates = new List<AccessAddressAR>();
-        await foreach (var dawaAccessAddress in dawaAccessAddressesAsyncEnumerable)
+        await foreach (var dawaAccessAddress in _dawaClient.GetAllAccessAddressesAsync(includedStatuses, cancellationToken).ConfigureAwait(false))
         {
             if (aggregates.Count == _bulkCount)
             {
@@ -276,10 +275,6 @@ post district code: '{PostDistrictCode}'.",
     {
         var addressProjection = _eventStore.Projections.Get<AddressProjection>();
 
-        var dawaUnitAddresssesAsyncEnumerable = _dawaClient
-            .GetAllUnitAddressesAsync(includedStatuses, cancellationToken)
-            .ConfigureAwait(false);
-
         // Important to be computed outside the loop, the computation is expensive.
         var existingAccessAddressIds = addressProjection.AccessAddressIds;
         var unitAddressOfficialIds = addressProjection.UnitAddressExternalIdToId;
@@ -287,7 +282,7 @@ post district code: '{PostDistrictCode}'.",
         var insertedIds = new HashSet<Guid>();
         var count = 0;
         var aggregates = new List<UnitAddressAR>();
-        await foreach (var dawaUnitAddress in dawaUnitAddresssesAsyncEnumerable)
+        await foreach (var dawaUnitAddress in _dawaClient.GetAllUnitAddressesAsync(includedStatuses, cancellationToken).ConfigureAwait(false))
         {
             if (aggregates.Count == _bulkCount)
             {
