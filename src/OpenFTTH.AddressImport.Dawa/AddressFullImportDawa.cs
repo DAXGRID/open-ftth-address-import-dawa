@@ -23,23 +23,25 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
         _eventStore = eventStore;
     }
 
-    public async Task Start(
-        DateTime dateTime,
+    public async Task<DateTime> Start(
         CancellationToken cancellationToken = default)
     {
-        var latestGenerationNumber = await _dawaClient.LatestGenerationNumberCurrentTotalDownloadAsync(cancellationToken).ConfigureAwait(false);
-
-        if (latestGenerationNumber is null)
+        var latestGeneration = await _dawaClient.LatestGenerationNumberCurrentTotalDownloadAsync(cancellationToken).ConfigureAwait(false);
+        if (latestGeneration is null)
         {
             throw new InvalidOperationException("Not all generation numbers are equal, cannot do full import.");
         }
 
-        _logger.LogInformation("Found latest {GenerationId} from current generation total download", latestGenerationNumber);
+        var latestGenerationNumber = latestGeneration.Value.generationNumber;
+        var latestGenerationTimeStamp = latestGeneration.Value.dateTime;
+
+        _logger.LogInformation("Found latest {GenerationId} from current generation total download with {LatestGenerationNumberTimeStamp}", latestGenerationNumber, latestGenerationTimeStamp);
 
         // Post codes
         _logger.LogInformation(
             "Starting full import of post codes using timestamp: '{TimeStamp}'.",
-            dateTime);
+            latestGenerationTimeStamp);
+
         var insertedPostCodesCount = await FullImportPostCodes(cancellationToken).ConfigureAwait(false);
         _logger.LogInformation(
             "Finished inserting '{Count}' post codes.", insertedPostCodesCount);
@@ -47,14 +49,14 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
         // Active and temporary roads
         _logger.LogInformation(
             "Starting full import of Active and temporary roads using timestamp: '{TimeStamp}'.",
-            dateTime);
+            latestGenerationTimeStamp);
         var insertedActiveRoadsCount = await FullImportRoads(new () { DawaRoadStatus.Effective,  DawaRoadStatus.Temporary }, cancellationToken).ConfigureAwait(false);
         _logger.LogInformation(
             "Finished inserting '{Count}' active and temporary roads.",
             insertedActiveRoadsCount);
 
         // Active and pending access addresses
-        _logger.LogInformation("Starting full import of active and pending access addresses using timestamp: '{TimeStamp}'.", dateTime);
+        _logger.LogInformation("Starting full import of active and pending access addresses using timestamp: '{TimeStamp}'.", latestGenerationTimeStamp);
         var insertedPendingAccessAddressesCount = await FullImportAccessAdress(
             new() { DawaStatus.Active, DawaStatus.Pending }, cancellationToken).ConfigureAwait(false);
         _logger.LogInformation(
@@ -64,11 +66,13 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
         // Active unit addresses
         _logger.LogInformation(
             "Starting full import of Active unit addresses using timestamp: '{TimeStamp}'.",
-            dateTime);
+            latestGenerationTimeStamp);
         var insertedActiveUnitAddressesCount = await FullImportUnitAddresses(
             new() { DawaStatus.Active, DawaStatus.Pending }, cancellationToken).ConfigureAwait(false);
         _logger.LogInformation(
             "Finished inserting a total '{Count}' of active and pending unit-addresses.", insertedActiveUnitAddressesCount);
+
+        return latestGenerationTimeStamp;
     }
 
     private async Task<int> FullImportRoads(

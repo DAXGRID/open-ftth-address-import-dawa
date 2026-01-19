@@ -43,26 +43,60 @@ public class ImportStarter
                 .Newest(cancellationToken)
                 .ConfigureAwait(false);
 
-            _logger.LogInformation(
-                "First run, so we do full import with transaction id: {TransactionId}.",
-                newestDateTime);
+            _logger.LogInformation("First run, so we do full import.");
 
-            await _addressFullImport
-                .Start(newestDateTime, cancellationToken)
+            var fullImportTimeStamp = await _addressFullImport
+                .Start(cancellationToken)
                 .ConfigureAwait(false);
 
             _logger.LogInformation(
-                "Storing transaction id: '{TransactionId}'.",
+                "Storing timestamp: '{TimeStamp}'.",
+                fullImportTimeStamp);
+
+            var storedFullImport = await _transactionStore
+                .Store(fullImportTimeStamp)
+                .ConfigureAwait(false);
+
+            if (!storedFullImport)
+            {
+                throw new InvalidOperationException(
+                    $"Failed storing transaction id: '{fullImportTimeStamp}'");
+            }
+
+            // Get changes from last full improt to newest datetime.
+            _logger.LogInformation("Starting to dehydrate projections.");
+            await _eventStore
+                .DehydrateProjectionsAsync(cancellationToken)
+                .ConfigureAwait(false);
+
+            _logger.LogInformation("Getting last completed timestamp.");
+            var lastCompletedTimeStamp = await _transactionStore
+                .LastCompleted(cancellationToken)
+                .ConfigureAwait(false);
+
+            _logger.LogInformation(
+                "Starting to import changes from {StartTime} to {EndTime}.",
+                lastCompletedTimeStamp,
                 newestDateTime);
 
-            var stored = await _transactionStore
+            await _addressChangesImport
+                .Start(lastCompletedTimeStamp,
+                       newestDateTime,
+                       cancellationToken)
+                .ConfigureAwait(false);
+
+            _logger.LogInformation(
+                "Storing datetime: '{DateTime}'.",
+                newestDateTime);
+
+            var storedChanges = await _transactionStore
                 .Store(newestDateTime)
                 .ConfigureAwait(false);
 
-            if (!stored)
+            if (!storedChanges)
             {
                 throw new InvalidOperationException(
-                    $"Failed storing transaction id: '{newestDateTime}'");
+                    $"Failed storing date time: '{lastCompletedTimeStamp}'");
             }
         }
         else
