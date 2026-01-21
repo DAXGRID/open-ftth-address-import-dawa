@@ -2,12 +2,13 @@ using DawaAddress;
 using Microsoft.Extensions.Logging;
 using OpenFTTH.Core.Address;
 using OpenFTTH.EventSourcing;
+using System.Text.Json;
 
 namespace OpenFTTH.AddressImport.Dawa;
 
 internal sealed class AddressChangesImportDawa : IAddressChangesImport
 {
-    private readonly DatafordelerClient _dawaClient;
+    private readonly DatafordelerClient _datafordelerClient;
     private readonly ILogger<AddressFullImportDawa> _logger;
     private readonly IEventStore _eventStore;
     private const string _apiKey = "";
@@ -17,7 +18,7 @@ internal sealed class AddressChangesImportDawa : IAddressChangesImport
         ILogger<AddressFullImportDawa> logger,
         IEventStore eventStore)
     {
-        _dawaClient = new DatafordelerClient(httpClient, _apiKey);
+        _datafordelerClient = new DatafordelerClient(httpClient, _apiKey);
         _logger = logger;
         _eventStore = eventStore;
     }
@@ -33,36 +34,23 @@ internal sealed class AddressChangesImportDawa : IAddressChangesImport
             toTimeStamp);
 
         // Post codes
-        var postCodeChanges = await _dawaClient
+        var postCodeChanges = await _datafordelerClient
             .GetAllPostCodesAsync(fromTimeStamp, toTimeStamp, null, cancellationToken)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        // Roads
-        var roadActiveChanges = await _dawaClient
-            .GetAllRoadsAsync(fromTimeStamp, toTimeStamp, DatafordelerRoadStatus.Active, cancellationToken)
-            .ToListAsync(cancellationToken).ConfigureAwait(false);
-
-        var roadTemporaryChanges = await _dawaClient
-            .GetAllRoadsAsync(fromTimeStamp, toTimeStamp, DatafordelerRoadStatus.Temporary, cancellationToken)
+        var roadChanges = await _datafordelerClient
+            .GetAllRoadsAsync(fromTimeStamp, toTimeStamp, null, cancellationToken)
             .ToListAsync(cancellationToken).ConfigureAwait(false);
 
         // Access addresses
-        var accessAddressActiveChanges = await _dawaClient
-            .GetAllAccessAddressesAsync(fromTimeStamp, toTimeStamp, DatafordelerAccessAddressStatus.Active, cancellationToken)
-            .ToListAsync(cancellationToken).ConfigureAwait(false);
-
-        var accessAddressPendingChanges = await _dawaClient
-            .GetAllAccessAddressesAsync(fromTimeStamp, toTimeStamp, DatafordelerAccessAddressStatus.Pending, cancellationToken)
+        var accessAddressChanges = await _datafordelerClient
+            .GetAllAccessAddressesAsync(fromTimeStamp, toTimeStamp, null, cancellationToken)
             .ToListAsync(cancellationToken).ConfigureAwait(false);
 
         // Unit addresses
-        var unitAddressActiveChanges = await _dawaClient
-            .GetAllUnitAddressesAsync(fromTimeStamp, toTimeStamp, DatafordelerUnitAddressStatus.Active, cancellationToken)
-            .ToListAsync(cancellationToken).ConfigureAwait(false);
-
-        var unitAddressPendingChanges = await _dawaClient
-            .GetAllUnitAddressesAsync(fromTimeStamp, toTimeStamp, DatafordelerUnitAddressStatus.Pending, cancellationToken)
+        var unitAddressChanges = await _datafordelerClient
+            .GetAllUnitAddressesAsync(fromTimeStamp, toTimeStamp, null, cancellationToken)
             .ToListAsync(cancellationToken).ConfigureAwait(false);
 
         var entityChanges = new List<(DateTime sequenceNumber, object data)>();
@@ -74,83 +62,75 @@ internal sealed class AddressChangesImportDawa : IAddressChangesImport
             entityChanges.Add(new(DateTime.MinValue, change));
         }
 
-        foreach (var change in roadActiveChanges)
+        foreach (var change in roadChanges)
         {
             entityChanges.Add(new(change.Updated, change));
         }
 
-        foreach (var change in roadTemporaryChanges)
+        foreach (var change in accessAddressChanges)
         {
             entityChanges.Add(new(change.Updated, change));
         }
 
-        foreach (var change in accessAddressActiveChanges)
-        {
-            entityChanges.Add(new(change.Updated, change));
-        }
-
-        foreach (var change in accessAddressPendingChanges)
-        {
-            entityChanges.Add(new(change.Updated, change));
-        }
-
-        foreach (var change in unitAddressActiveChanges)
-        {
-            entityChanges.Add(new(change.Updated, change));
-        }
-
-        foreach (var change in unitAddressPendingChanges)
+        foreach (var change in unitAddressChanges)
         {
             entityChanges.Add(new(change.Updated, change));
         }
 
         foreach (var entityChange in entityChanges.OrderBy(x => x.sequenceNumber))
         {
-            switch (entityChange.data)
+            _logger.LogInformation("Processing {Change}", JsonSerializer.Serialize(entityChange.data));
+
+            try
             {
-                case DawaPostCode dawaPostCodeChange:
-                    await ImportPostCodeChange(dawaPostCodeChange).ConfigureAwait(false);
-                    break;
-                case DawaRoad dawaRoadChange:
-                    await ImportRoadChange(dawaRoadChange).ConfigureAwait(false);
-                    break;
-                case DawaAccessAddress dawaAccessAddressChange:
-                    await ImportAccessAddressChange(dawaAccessAddressChange).ConfigureAwait(false);
-                    break;
-                case DawaUnitAddress dawaUnitAddressChange:
-                    await ImportUnitAddressChange(dawaUnitAddressChange).ConfigureAwait(false);
-                    break;
-                default:
-                    throw new ArgumentException($"Unsupported type.");
+                switch (entityChange.data)
+                {
+                    case DawaPostCode dawaPostCodeChange:
+                        await ImportPostCodeChange(dawaPostCodeChange).ConfigureAwait(false);
+                        break;
+                    case DawaRoad dawaRoadChange:
+                        await ImportRoadChange(dawaRoadChange).ConfigureAwait(false);
+                        break;
+                    case DawaAccessAddress dawaAccessAddressChange:
+                        await ImportAccessAddressChange(dawaAccessAddressChange).ConfigureAwait(false);
+                        break;
+                    case DawaUnitAddress dawaUnitAddressChange:
+                        await ImportUnitAddressChange(dawaUnitAddressChange).ConfigureAwait(false);
+                        break;
+                    default:
+                        throw new ArgumentException($"Unsupported type.");
+                }
+
+                await _eventStore.CatchUpAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogCritical("Failed on change {Change}, {Exception}", JsonSerializer.Serialize(entityChange.data), ex);
+                throw;
             }
         }
 
         _logger.LogInformation("Finished processing a total of {PostCodeChangesCount}.", postCodeChanges.Count);
-
-        _logger.LogInformation("Finished processing a total of {ActiveRoadChangesCount}.", roadActiveChanges.Count);
-        _logger.LogInformation("Finished processing a total of {TemporaryRoadChangesCount}.", roadTemporaryChanges.Count);
-
-        _logger.LogInformation("Finished processing a total of {ActiveAccessAddressChanges}.", accessAddressActiveChanges.Count);
-        _logger.LogInformation("Finished processing a total of {PendingAccessAddressChanges}.", accessAddressPendingChanges.Count);
-
-        _logger.LogInformation("Finished processing a total of {ActiveUnitAddressChangesCount}.", unitAddressActiveChanges.Count);
-        _logger.LogInformation("Finished processing a total of {PendingUnitAddressChangesCount}.", unitAddressPendingChanges.Count);
+        _logger.LogInformation("Finished processing a total of {RoadChangesCount}.", roadChanges.Count);
+        _logger.LogInformation("Finished processing a total of {AccessAddressChanges}.", accessAddressChanges.Count);
+        _logger.LogInformation("Finished processing a total of {UnitAddressChangesCount}.", unitAddressChanges.Count);
     }
 
     private async Task ImportPostCodeChange(DawaPostCode postCodeChange)
     {
         var addressProjection = _eventStore.Projections.Get<AddressProjection>();
 
-        if (!addressProjection.PostCodeNumberToId.TryGetValue(postCodeChange.Number, out var postCodeId))
+        var exists = false;
+        if (addressProjection.PostCodeNumberToId.TryGetValue(postCodeChange.Number, out var postCodeId))
         {
-            throw new InvalidOperationException(@$"Could not lookup postcode on id '{postCodeChange.Number}'.");
+            exists = true;
         }
 
         var postCode = _eventStore.Aggregates.Load<PostCodeAR>(postCodeId);
 
         DawaEntityChangeOperation? operation = null;
 
-        if (postCode is null)
+        if (!exists && postCodeChange.Status == DawaPostCodeStatus.Active)
         {
             operation = DawaEntityChangeOperation.Insert;
         }
@@ -285,26 +265,35 @@ on {nameof(postCodeId)}: '{postCodeId}'");
     {
         var addressProjection = _eventStore.Projections.Get<AddressProjection>();
 
+        var exists = false;
         if (!addressProjection.RoadExternalIdIdToId.TryGetValue(change.Id.ToString(), out var roadId))
         {
-            throw new InvalidOperationException(@$"Could not lookup road on external id '{change.Id}'.");
+            exists = true;
         }
 
-        var road = _eventStore.Aggregates.Load<RoadAR>(roadId);
+        if (roadId == Guid.Empty)
+        {
+            exists = false;
+        }
 
         DawaEntityChangeOperation? operation = null;
 
-        if (road is null && (change.Status == DawaRoadStatus.Effective || change.Status == DawaRoadStatus.Temporary))
+        if (!exists && (change.Status == DawaRoadStatus.Effective || change.Status == DawaRoadStatus.Temporary))
         {
             operation = DawaEntityChangeOperation.Insert;
         }
-        else if (change.Status == DawaRoadStatus.Effective || change.Status == DawaRoadStatus.Temporary)
+        else if (exists && (change.Status == DawaRoadStatus.Effective || change.Status == DawaRoadStatus.Temporary))
         {
             operation = DawaEntityChangeOperation.Update;
         }
-        else if (change.Status == DawaRoadStatus.Discontinued || change.Status == DawaRoadStatus.Canceled)
+        else if (exists && (change.Status == DawaRoadStatus.Discontinued || change.Status == DawaRoadStatus.Canceled))
         {
             operation = DawaEntityChangeOperation.Delete;
+        }
+        else if (!exists && (change.Status == DawaRoadStatus.Discontinued || change.Status == DawaRoadStatus.Canceled))
+        {
+            _logger.LogInformation("The access address has never been created so we just return. '{Data}'.", JsonSerializer.Serialize(change));
+            return;
         }
         else
         {
@@ -426,30 +415,39 @@ on {nameof(postCodeId)}: '{postCodeId}'");
     {
         var addressProjection = _eventStore.Projections.Get<AddressProjection>();
 
-        if (!addressProjection.AccessAddressExternalIdToId.TryGetValue(change.Id.ToString(), out var accessAddressId))
+        var exists = false;
+        if (addressProjection.AccessAddressExternalIdToId.TryGetValue(change.Id.ToString(), out var accessAddressId))
         {
-            throw new InvalidOperationException(@$"Could not lookup access address on external id '{change.Id}'.");
+            exists = true;
         }
 
-        var accessAddress = _eventStore.Aggregates.Load<AccessAddressAR>(accessAddressId);
+        if (accessAddressId == Guid.Empty)
+        {
+            exists = false;
+        }
 
         DawaEntityChangeOperation? operation = null;
 
-        if (accessAddress is null && (change.Status == DawaStatus.Active || change.Status == DawaStatus.Pending))
+        if (!exists && (change.Status == DawaStatus.Active || change.Status == DawaStatus.Pending))
         {
             operation = DawaEntityChangeOperation.Insert;
         }
-        else if (change.Status == DawaStatus.Active || change.Status == DawaStatus.Pending)
+        else if (exists && (change.Status == DawaStatus.Active || change.Status == DawaStatus.Pending))
         {
             operation = DawaEntityChangeOperation.Update;
         }
-        else if (change.Status == DawaStatus.Canceled || change.Status == DawaStatus.Canceled)
+        else if (exists && (change.Status == DawaStatus.Canceled || change.Status == DawaStatus.Discontinued))
         {
             operation = DawaEntityChangeOperation.Delete;
         }
+        else if (!exists && (change.Status == DawaStatus.Canceled || change.Status == DawaStatus.Discontinued))
+        {
+            _logger.LogInformation("The access address has never been created so we just return. '{Data}'.", JsonSerializer.Serialize(change));
+            return;
+        }
         else
         {
-            throw new InvalidOperationException($"Could not figure out what to do with the road change with id: Dawa id {change.Id}.");
+            throw new InvalidOperationException($"Could not figure out what to do with the access address change with id: Dawa id {change.Id}, {JsonSerializer.Serialize(change)}.");
         }
 
         // Important to do this outside since they're expensive computations.
@@ -525,6 +523,7 @@ post district code: '{PostDistrictCode}'.",
         {
             var accessAddressAR = _eventStore.Aggregates
                 .Load<AccessAddressAR>(accessAddressId);
+
             if (accessAddressAR is null)
             {
                 throw new InvalidOperationException(
@@ -597,12 +596,12 @@ post district code: '{PostDistrictCode}'.",
         }
         else if (operation == DawaEntityChangeOperation.Delete)
         {
+            _logger.LogInformation("{Id}", accessAddressId);
             var accessAddressAR = _eventStore.Aggregates.Load<AccessAddressAR>(accessAddressId);
+
             if (accessAddressAR is null)
             {
-                throw new InvalidOperationException(
-                    @$"Could not load {nameof(AccessAddressAR)}
- on id '{accessAddressId}'.");
+                throw new InvalidOperationException(@$"Could not load {nameof(AccessAddressAR)} on id '{accessAddressId}'.");
             }
 
             var deleteResult = accessAddressAR.Delete(externalUpdatedDate: change.Updated);
@@ -635,26 +634,35 @@ post district code: '{PostDistrictCode}'.",
     {
         var addressProjection = _eventStore.Projections.Get<AddressProjection>();
 
-        if (!addressProjection.UnitAddressExternalIdToId.TryGetValue(change.Id.ToString(), out var unitAddressId))
+        var exists = false;
+        if (addressProjection.UnitAddressExternalIdToId.TryGetValue(change.Id.ToString(), out var unitAddressId))
         {
-            throw new InvalidOperationException(@$"Could not lookup unit address on external id '{change.Id}'.");
+            exists = true;
         }
 
-        var unitAddress = _eventStore.Aggregates.Load<UnitAddressAR>(unitAddressId);
+        if (unitAddressId == Guid.Empty)
+        {
+            exists = false;
+        }
 
         DawaEntityChangeOperation? operation = null;
 
-        if (unitAddress is null && (change.Status == DawaStatus.Active || change.Status == DawaStatus.Pending))
+        if (!exists && (change.Status == DawaStatus.Active || change.Status == DawaStatus.Pending))
         {
             operation = DawaEntityChangeOperation.Insert;
         }
-        else if (change.Status == DawaStatus.Active || change.Status == DawaStatus.Pending)
+        else if (exists && (change.Status == DawaStatus.Active || change.Status == DawaStatus.Pending))
         {
             operation = DawaEntityChangeOperation.Update;
         }
-        else if (change.Status == DawaStatus.Canceled || change.Status == DawaStatus.Canceled)
+        else if (exists && (change.Status == DawaStatus.Canceled || change.Status == DawaStatus.Discontinued))
         {
             operation = DawaEntityChangeOperation.Delete;
+        }
+        else if (!exists && (change.Status == DawaStatus.Canceled || change.Status == DawaStatus.Discontinued))
+        {
+            _logger.LogInformation("The unit address has never been created so we just return. '{Data}'.", JsonSerializer.Serialize(change));
+            return;
         }
         else
         {

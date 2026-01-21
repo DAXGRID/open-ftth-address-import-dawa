@@ -34,17 +34,16 @@ public class ImportStarter
 
         _logger.LogInformation("Getting last completed transaction.");
         var lastCompletedDateTime = await _transactionStore
-            .LastCompleted(cancellationToken)
+            .LastCompletedUtc(cancellationToken)
             .ConfigureAwait(false);
 
         if (lastCompletedDateTime is null)
         {
             var newestDateTime = await _transactionStore
-                .Newest(cancellationToken)
+                .NewestUtc(cancellationToken)
                 .ConfigureAwait(false);
 
             _logger.LogInformation("First run, so we do full import.");
-
             var fullImportTimeStamp = await _addressFullImport
                 .Start(cancellationToken)
                 .ConfigureAwait(false);
@@ -66,12 +65,12 @@ public class ImportStarter
             // Get changes from last full improt to newest datetime.
             _logger.LogInformation("Starting to dehydrate projections.");
             await _eventStore
-                .DehydrateProjectionsAsync(cancellationToken)
+                .CatchUpAsync(cancellationToken)
                 .ConfigureAwait(false);
 
             _logger.LogInformation("Getting last completed timestamp.");
             var lastCompletedTimeStamp = await _transactionStore
-                .LastCompleted(cancellationToken)
+                .LastCompletedUtc(cancellationToken)
                 .ConfigureAwait(false);
 
             _logger.LogInformation(
@@ -80,7 +79,7 @@ public class ImportStarter
                 newestDateTime);
 
             await _addressChangesImport
-                .Start(lastCompletedTimeStamp,
+                .Start(lastCompletedTimeStamp!.Value,
                        newestDateTime,
                        cancellationToken)
                 .ConfigureAwait(false);
@@ -101,13 +100,17 @@ public class ImportStarter
         }
         else
         {
+            _logger.LogInformation("Found last completed transaction {DateTime}.", lastCompletedDateTime);
+
             _logger.LogInformation("Starting to dehydrate projections.");
             await _eventStore
                 .DehydrateProjectionsAsync(cancellationToken)
                 .ConfigureAwait(false);
 
+            _logger.LogInformation("Finsihed to dehydrate projections.");
+
             var newestDateTime = await _transactionStore
-                .Newest(cancellationToken)
+                .NewestUtc(cancellationToken)
                 .ConfigureAwait(false);
 
             _logger.LogInformation(

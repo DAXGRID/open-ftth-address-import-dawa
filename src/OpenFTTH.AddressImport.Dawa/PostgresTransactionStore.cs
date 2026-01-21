@@ -13,7 +13,7 @@ internal class PostgresTransactionStore : ITransactionStore
         _connectionString = settings.EventStoreConnectionString;
     }
 
-    public async Task<DateTime?> LastCompleted(CancellationToken cancellationToken = default)
+    public async Task<DateTime?> LastCompletedUtc(CancellationToken cancellationToken = default)
     {
         const string queryLastCompleted =
             @$"SELECT timestamp
@@ -29,10 +29,10 @@ internal class PostgresTransactionStore : ITransactionStore
             .ExecuteScalarAsync(cancellationToken)
             .ConfigureAwait(false) as DateTime?;
 
-        return result is not null ? result : null;
+        return result is not null ? result.Value.ToUniversalTime() : null;
     }
 
-    public Task<DateTime> Newest(CancellationToken cancellationToken = default)
+    public Task<DateTime> NewestUtc(CancellationToken cancellationToken = default)
     {
         return Task.FromResult(DateTime.UtcNow);
     }

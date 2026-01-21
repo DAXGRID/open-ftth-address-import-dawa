@@ -35,7 +35,10 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
         var latestGenerationNumber = latestGeneration.Value.generationNumber;
         var latestGenerationTimeStamp = latestGeneration.Value.dateTime;
 
-        _logger.LogInformation("Found latest {GenerationId} from current generation total download with {LatestGenerationNumberTimeStamp}", latestGenerationNumber, latestGenerationTimeStamp);
+        _logger.LogInformation(
+            "Found latest {GenerationId} from current generation total download with {LatestGenerationNumberTimeStamp}",
+            latestGenerationNumber,
+            latestGenerationTimeStamp);
 
         // Post codes
         _logger.LogInformation(

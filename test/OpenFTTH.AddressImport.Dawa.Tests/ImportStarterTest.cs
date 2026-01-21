@@ -41,10 +41,10 @@ public class ImportStarterTest : IClassFixture<DatabaseFixture>
         var transactionStore = A.Fake<ITransactionStore>();
         var latestTransactionId = DateTime.UtcNow;
 
-        A.CallTo(() => transactionStore.LastCompleted(default))
+        A.CallTo(() => transactionStore.LastCompletedUtc(default))
             .Returns<DateTime?>(null);
 
-        A.CallTo(() => transactionStore.Newest(default))
+        A.CallTo(() => transactionStore.NewestUtc(default))
             .Returns<DateTime>(latestTransactionId);
 
         A.CallTo(() => transactionStore.Store(latestTransactionId))
@@ -59,7 +59,7 @@ public class ImportStarterTest : IClassFixture<DatabaseFixture>
 
         await importStarter.Start().ConfigureAwait(true);
 
-        A.CallTo(() => addressFullImport.Start(latestTransactionId, default))
+        A.CallTo(() => addressFullImport.Start(default))
             .MustHaveHappenedOnceExactly();
 
         // A.CallTo(() => addressChangesImport.Start(default, latestTransactionId, default))
@@ -132,10 +132,10 @@ public class ImportStarterTest : IClassFixture<DatabaseFixture>
         var newestTransactionId = DateTime.UtcNow;
         var transactionStore = A.Fake<ITransactionStore>();
 
-        A.CallTo(() => transactionStore.LastCompleted(cts.Token))
+        A.CallTo(() => transactionStore.LastCompletedUtc(cts.Token))
             .Returns<DateTime?>(null);
 
-        A.CallTo(() => transactionStore.Newest(cts.Token))
+        A.CallTo(() => transactionStore.NewestUtc(cts.Token))
             .Returns<DateTime>(newestTransactionId);
 
         A.CallTo(() => transactionStore.Store(newestTransactionId))
