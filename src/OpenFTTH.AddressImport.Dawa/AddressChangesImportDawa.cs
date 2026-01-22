@@ -389,7 +389,6 @@ on {nameof(postCodeId)}: '{postCodeId}'");
             }
             else
             {
-                // There will always only be a single error.
                 var error = (RoadError)deleteResult.Errors.First();
                 if (error.Code == RoadErrorCode.CANNOT_DELETE_ALREADY_DELETED)
                 {
@@ -576,17 +575,22 @@ post district code: '{PostDistrictCode}'.",
             }
             else
             {
-                // There will always only be a single error.
                 var error = (AccessAddressError)updateResult.Errors.First();
-                if (error.Code == AccessAddressErrorCode.NO_CHANGES ||
-                    error.Code == AccessAddressErrorCode.CANNOT_UPDATE_DELETED)
+                if (error.Code == AccessAddressErrorCode.NO_CHANGES)
                 {
-                    _logger.LogInformation(
+                    _logger.LogDebug(
                         "{ExternalId}: {ErrorMessage}",
                         accessAddressAR.ExternalId,
                         error.Message);
 
                     return;
+                }
+                else if (error.Code == AccessAddressErrorCode.CANNOT_UPDATE_DELETED)
+                {
+                    _logger.LogWarning(
+                        "{ExternalId}: {ErrorMessage}",
+                        accessAddressAR.ExternalId,
+                        error.Message);
                 }
                 else
                 {
@@ -614,12 +618,10 @@ post district code: '{PostDistrictCode}'.",
             }
             else
             {
-                // There will always only be a single error.
                 var error = (AccessAddressError)deleteResult.Errors.First();
                 if (error.Code == AccessAddressErrorCode.CANNOT_DELETE_ALREADY_DELETED)
                 {
-                    // No changes is okay, we just log it.
-                    _logger.LogDebug("{ErrorMessage}", error.Message);
+                    _logger.LogError("{ErrorMessage}", error.Message);
                     return;
                 }
                 else
@@ -770,17 +772,23 @@ official accessAddressId: '{AccessAddressId}'.",
             }
             else
             {
-                // There will always only be a single error.
+
                 var error = (UnitAddressError)updateResult.Errors.First();
-                if (error.Code == UnitAddressErrorCode.NO_CHANGES ||
-                    error.Code == UnitAddressErrorCode.CANNOT_UPDATE_DELETED)
+                if (error.Code == UnitAddressErrorCode.NO_CHANGES)
                 {
-                    _logger.LogInformation(
+                    _logger.LogDebug(
                         "{ExternalId}: {ErrorMessage}",
                         unitAddressAR.ExternalId,
                         error.Message);
 
                     return;
+                }
+                else if (error.Code == UnitAddressErrorCode.CANNOT_UPDATE_DELETED)
+                {
+                    _logger.LogWarning(
+                        "{ExternalId}: {ErrorMessage}",
+                        unitAddressAR.ExternalId,
+                        error.Message);
                 }
                 else
                 {
@@ -804,12 +812,9 @@ official accessAddressId: '{AccessAddressId}'.",
             else
             {
                 var error = (UnitAddressError)deleteResult.Errors.First();
-                if (error.Code == UnitAddressErrorCode
-                    .CANNOT_DELETE_ALREADY_DELETED)
+                if (error.Code == UnitAddressErrorCode.CANNOT_DELETE_ALREADY_DELETED)
                 {
-                    // No changes is okay, we just log it.
                     _logger.LogWarning("{ErrorMessage}", error.Message);
-
                     return;
                 }
                 else
