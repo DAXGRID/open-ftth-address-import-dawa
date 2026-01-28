@@ -8,7 +8,7 @@ internal class PostgresTransactionStore : ITransactionStore
     private const string _schemaName = "datafordeleren_address_import";
     private const string _tableName = "transaction_store";
 
-    public PostgresTransactionStore(HttpClient httpClient, Settings settings)
+    public PostgresTransactionStore(AddressImportSettings settings)
     {
         _connectionString = settings.EventStoreConnectionString;
     }
@@ -54,11 +54,29 @@ internal class PostgresTransactionStore : ITransactionStore
         return (await cmd.ExecuteNonQueryAsync().ConfigureAwait(false)) == 1;
     }
 
-    public async Task Init()
+    public async Task Init(bool enableMigration)
     {
-        if (!(await SchemaExist().ConfigureAwait(false)))
+        if (!(await SchemaExist(_schemaName).ConfigureAwait(false)))
         {
             await InitSchemaAndTable().ConfigureAwait(false);
+
+            if (enableMigration)
+            {
+                // The old schema.
+                // This is done becaues before we used the Dataforsyningen provider.
+                // They closed down, and we had to switch to Datafordeleren.
+                // Datafordeleren does not store the data using a transaction ID, but a date time.
+                // We query the last timestamp for the transaction ID and insert it into the new datastore if no data exists in it.
+                // That way we can switch over without anything manual having to be done.
+                if ((await SchemaExist("address_import").ConfigureAwait(false)))
+                {
+                    var lastTransactionTimeStamp = await MigrationGetLastTransactionTimeStamp().ConfigureAwait(false);
+                    if (lastTransactionTimeStamp is not null)
+                    {
+                        await Store(lastTransactionTimeStamp.Value).ConfigureAwait(false);
+                    }
+                }
+            }
         }
     }
 
@@ -91,12 +109,28 @@ internal class PostgresTransactionStore : ITransactionStore
         await transaction.CommitAsync().ConfigureAwait(false);
     }
 
-    private async Task<bool> SchemaExist()
+    private async Task<DateTime?> MigrationGetLastTransactionTimeStamp()
     {
-        const string schemaExistsQuery =
+        string getLatestTimeStamp = @"SELECT created_at
+         FROM address_import.transaction_store
+         ORDER BY id DESC
+         LIMIT 1";
+
+        using var connection = new NpgsqlConnection(_connectionString);
+        await connection.OpenAsync().ConfigureAwait(false);
+
+        using var cmd = new NpgsqlCommand(getLatestTimeStamp, connection);
+
+        var result = await cmd.ExecuteScalarAsync().ConfigureAwait(false);
+        return (DateTime?)result;
+    }
+
+    private async Task<bool> SchemaExist(string schemaName)
+    {
+        string schemaExistsQuery =
             @$"SELECT schema_name
                FROM information_schema.schemata
-               WHERE schema_name = '{_schemaName}'";
+               WHERE schema_name = '{schemaName}'";
 
         using var connection = new NpgsqlConnection(_connectionString);
         await connection.OpenAsync().ConfigureAwait(false);

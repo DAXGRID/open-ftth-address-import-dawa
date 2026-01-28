@@ -16,7 +16,7 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
         HttpClient httpClient,
         ILogger<AddressFullImportDawa> logger,
         IEventStore eventStore,
-        Settings settings)
+        AddressImportSettings settings)
     {
         _dawaClient = new(httpClient, settings.DatafordelerApiKey);
         _logger = logger;

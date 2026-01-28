@@ -15,19 +15,22 @@ public class ImportStarterTest : IClassFixture<DatabaseFixture>
     private readonly IAddressFullImport _addressFullImport;
     private readonly IAddressChangesImport _addressChangesImport;
     private readonly ILogger<ImportStarter> _logger;
+    private readonly AddressImportSettings _settings;
 
     public ImportStarterTest(
         IServiceProvider serviceProvider,
         IEventStore eventStore,
         IAddressFullImport addressFullImport,
         IAddressChangesImport addresssChangesImport,
-        ILogger<ImportStarter> logger)
+        ILogger<ImportStarter> logger,
+        AddressImportSettings settings)
     {
         _serviceProvider = serviceProvider;
         _eventStore = eventStore;
         _addressFullImport = addressFullImport;
         _addressChangesImport = addresssChangesImport;
         _logger = logger;
+        _settings = settings;
     }
 
     [Fact]
@@ -55,7 +58,8 @@ public class ImportStarterTest : IClassFixture<DatabaseFixture>
             eventStore: eventStore,
             transactionStore: transactionStore,
             addressFullImport: addressFullImport,
-            addressChangesImport: addressChangesImport);
+            addressChangesImport: addressChangesImport,
+            settings: _settings);
 
         await importStarter.Start().ConfigureAwait(true);
 
@@ -146,7 +150,8 @@ public class ImportStarterTest : IClassFixture<DatabaseFixture>
             eventStore: _eventStore,
             transactionStore: transactionStore,
             addressFullImport: _addressFullImport,
-            addressChangesImport: _addressChangesImport);
+            addressChangesImport: _addressChangesImport,
+            settings: _settings);
 
         var addressProjection = _eventStore.Projections.Get<AddressProjection>();
 

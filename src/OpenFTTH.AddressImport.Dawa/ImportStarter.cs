@@ -10,27 +10,31 @@ public class ImportStarter
     private readonly ITransactionStore _transactionStore;
     private readonly IAddressFullImport _addressFullImport;
     private readonly IAddressChangesImport _addressChangesImport;
+    private readonly AddressImportSettings _settings;
 
     public ImportStarter(
         ILogger<ImportStarter> logger,
         IEventStore eventStore,
         ITransactionStore transactionStore,
         IAddressFullImport addressFullImport,
-        IAddressChangesImport addressChangesImport)
+        IAddressChangesImport addressChangesImport,
+        AddressImportSettings settings
+    )
     {
         _logger = logger;
         _addressFullImport = addressFullImport;
         _eventStore = eventStore;
         _transactionStore = transactionStore;
         _addressChangesImport = addressChangesImport;
+        _settings = settings;
     }
 
     public async Task Start(CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Starting {Name}.", nameof(ImportStarter));
+        _logger.LogInformation("Starting {Name} with {EnableMigration}.", nameof(ImportStarter), _settings.EnableMigration);
 
         // Init transaction store if not exists
-        await _transactionStore.Init().ConfigureAwait(false);
+        await _transactionStore.Init(_settings.EnableMigration).ConfigureAwait(false);
 
         _logger.LogInformation("Getting last completed transaction.");
         var lastCompletedDateTime = await _transactionStore

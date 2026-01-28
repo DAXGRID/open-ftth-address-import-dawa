@@ -2,7 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace OpenFTTH.AddressImport.Dawa;
 
-internal sealed record Settings
+public sealed record AddressImportSettings
 {
     [JsonPropertyName("eventStoreConnectionString")]
     public string EventStoreConnectionString { get; init; }
@@ -10,8 +10,11 @@ internal sealed record Settings
     [JsonPropertyName("datafordelerApiKey")]
     public string DatafordelerApiKey { get; init; }
 
+    [JsonPropertyName("enableMigration")]
+    public bool EnableMigration { get; init; }
+
     [JsonConstructor]
-    public Settings(string eventStoreConnectionString, string datafordelerApiKey)
+    public AddressImportSettings(string eventStoreConnectionString, string datafordelerApiKey, bool enableMigration)
     {
         if (string.IsNullOrWhiteSpace(eventStoreConnectionString))
         {
@@ -29,5 +32,6 @@ internal sealed record Settings
 
         EventStoreConnectionString = eventStoreConnectionString;
         DatafordelerApiKey = datafordelerApiKey;
+        EnableMigration = enableMigration;
     }
 }
