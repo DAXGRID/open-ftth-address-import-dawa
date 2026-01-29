@@ -1,27 +1,24 @@
-using DawaAddress;
 using Npgsql;
 
 namespace OpenFTTH.AddressImport.Dawa;
 
 internal class PostgresTransactionStore : ITransactionStore
 {
-    private DataForsyningenClient _dawaClient;
     private string _connectionString;
-    private const string _schemaName = "address_import";
+    private const string _schemaName = "datafordeleren_address_import";
     private const string _tableName = "transaction_store";
 
-    public PostgresTransactionStore(HttpClient httpClient, Settings settings)
+    public PostgresTransactionStore(AddressImportSettings settings)
     {
         _connectionString = settings.EventStoreConnectionString;
-        _dawaClient = new DataForsyningenClient(httpClient);
     }
 
-    public async Task<ulong?> LastCompleted(CancellationToken cancellationToken = default)
+    public async Task<DateTime?> LastCompletedUtc(CancellationToken cancellationToken = default)
     {
         const string queryLastCompleted =
-            @$"SELECT transaction_id
+            @$"SELECT timestamp
                FROM {_schemaName}.{_tableName}
-               ORDER BY transaction_id DESC
+               ORDER BY id DESC
                LIMIT 1";
 
         using var connection = new NpgsqlConnection(_connectionString);
@@ -30,58 +27,56 @@ internal class PostgresTransactionStore : ITransactionStore
 
         var result = await cmd
             .ExecuteScalarAsync(cancellationToken)
-            .ConfigureAwait(false) as long?;
+            .ConfigureAwait(false) as DateTime?;
 
-        return result is not null ? (ulong)result : null;
+        return result is not null ? result.Value.ToUniversalTime() : null;
     }
 
-    public async Task<List<ulong>> TransactionIdsAfter(ulong transactionId, CancellationToken cancellationToken = default)
+    public Task<DateTime> NewestUtc(CancellationToken cancellationToken = default)
     {
-        var transactions = await _dawaClient
-            .GetAllTransactionsAfter(transactionId, cancellationToken)
-            .ConfigureAwait(false);
-
-        return transactions.Select(x => x.Id).ToList();
+        return Task.FromResult(DateTime.UtcNow);
     }
 
-    public async Task<ulong> Newest(CancellationToken cancellationToken = default)
+    public async Task<bool> Store(DateTime timestamp)
     {
-        var transaction = await _dawaClient
-            .GetLatestTransactionAsync(cancellationToken)
-            .ConfigureAwait(false);
-
-        return transaction.Id;
-    }
-
-    public async Task<bool> Store(ulong transactionId)
-    {
-        if (transactionId > long.MaxValue)
-        {
-            throw new ArgumentException(
-                $"Cannot store value bigger than {long.MaxValue}",
-                nameof(transactionId));
-        }
-
         const string insertSql =
             $@"INSERT INTO {_schemaName}.{_tableName} (
-                 transaction_id)
+                 timestamp)
                VALUES (
-                 @transactionId)";
+                 @timestamp)";
 
         using var connection = new NpgsqlConnection(_connectionString);
         await connection.OpenAsync().ConfigureAwait(false);
 
         using var cmd = new NpgsqlCommand(insertSql, connection);
-        cmd.Parameters.AddWithValue("@transactionId", (long)transactionId);
+        cmd.Parameters.AddWithValue("@timestamp", timestamp);
 
         return (await cmd.ExecuteNonQueryAsync().ConfigureAwait(false)) == 1;
     }
 
-    public async Task Init()
+    public async Task Init(bool enableMigration)
     {
-        if (!(await SchemaExist().ConfigureAwait(false)))
+        if (!(await SchemaExist(_schemaName).ConfigureAwait(false)))
         {
             await InitSchemaAndTable().ConfigureAwait(false);
+
+            if (enableMigration)
+            {
+                // The old schema.
+                // This is done becaues before we used the Dataforsyningen provider.
+                // They closed down, and we had to switch to Datafordeleren.
+                // Datafordeleren does not store the data using a transaction ID, but a date time.
+                // We query the last timestamp for the transaction ID and insert it into the new datastore if no data exists in it.
+                // That way we can switch over without anything manual having to be done.
+                if ((await SchemaExist("address_import").ConfigureAwait(false)))
+                {
+                    var lastTransactionTimeStamp = await MigrationGetLastTransactionTimeStamp().ConfigureAwait(false);
+                    if (lastTransactionTimeStamp is not null)
+                    {
+                        await Store(lastTransactionTimeStamp.Value).ConfigureAwait(false);
+                    }
+                }
+            }
         }
     }
 
@@ -92,7 +87,7 @@ internal class PostgresTransactionStore : ITransactionStore
                CREATE TABLE {_schemaName}.{_tableName} (
                  id SERIAL PRIMARY KEY,
                  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                 transaction_id BIGINT CHECK (transaction_id > 0));";
+                 timestamp TIMESTAMPTZ NOT NULL);";
 
         using var connection = new NpgsqlConnection(_connectionString);
         await connection.OpenAsync().ConfigureAwait(false);
@@ -114,12 +109,28 @@ internal class PostgresTransactionStore : ITransactionStore
         await transaction.CommitAsync().ConfigureAwait(false);
     }
 
-    private async Task<bool> SchemaExist()
+    private async Task<DateTime?> MigrationGetLastTransactionTimeStamp()
     {
-        const string schemaExistsQuery =
+        string getLatestTimeStamp = @"SELECT created_at
+         FROM address_import.transaction_store
+         ORDER BY id DESC
+         LIMIT 1";
+
+        using var connection = new NpgsqlConnection(_connectionString);
+        await connection.OpenAsync().ConfigureAwait(false);
+
+        using var cmd = new NpgsqlCommand(getLatestTimeStamp, connection);
+
+        var result = await cmd.ExecuteScalarAsync().ConfigureAwait(false);
+        return (DateTime?)result;
+    }
+
+    private async Task<bool> SchemaExist(string schemaName)
+    {
+        string schemaExistsQuery =
             @$"SELECT schema_name
                FROM information_schema.schemata
-               WHERE schema_name = '{_schemaName}'";
+               WHERE schema_name = '{schemaName}'";
 
         using var connection = new NpgsqlConnection(_connectionString);
         await connection.OpenAsync().ConfigureAwait(false);

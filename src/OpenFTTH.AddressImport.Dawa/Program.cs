@@ -63,12 +63,12 @@ public sealed class Program
         var settingsJson = JsonDocument.Parse(File.ReadAllText("appsettings.json"))
             .RootElement.GetProperty("settings").ToString();
 
-        var settings = JsonSerializer.Deserialize<Settings>(settingsJson) ??
+        var settings = JsonSerializer.Deserialize<AddressImportSettings>(settingsJson) ??
             throw new ArgumentException("Could not deserialize appsettings into settings.");
 
         return new ServiceCollection()
             .AddSingleton<ImportStarter>()
-            .AddSingleton<Settings>(settings)
+            .AddSingleton<AddressImportSettings>(settings)
             .AddSingleton<IAddressFullImport, AddressFullImportDawa>()
             .AddSingleton<IAddressChangesImport, AddressChangesImportDawa>()
             .AddSingleton<ITransactionStore, PostgresTransactionStore>()

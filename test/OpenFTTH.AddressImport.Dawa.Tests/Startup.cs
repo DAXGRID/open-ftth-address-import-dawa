@@ -26,7 +26,7 @@ public static class Startup
         });
 
         services.AddHttpClient();
-        services.AddSingleton(new Settings(DatabaseFixture.TestDbConnectionString));
+        services.AddSingleton(new AddressImportSettings(DatabaseFixture.TestDbConnectionString, "", false));
         services.AddSingleton<IAddressFullImport, AddressFullImportDawa>();
         services.AddSingleton<IAddressChangesImport, AddressChangesImportDawa>();
         services.AddSingleton<IEventStore>(

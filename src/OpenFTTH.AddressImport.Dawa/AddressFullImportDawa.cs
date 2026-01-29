@@ -7,7 +7,7 @@ namespace OpenFTTH.AddressImport.Dawa;
 
 internal sealed class AddressFullImportDawa : IAddressFullImport
 {
-    private readonly DataForsyningenClient _dawaClient;
+    private readonly DatafordelerClient _dawaClient;
     private readonly ILogger<AddressFullImportDawa> _logger;
     private readonly IEventStore _eventStore;
     private const int _bulkCount = 5000;
@@ -15,63 +15,78 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
     public AddressFullImportDawa(
         HttpClient httpClient,
         ILogger<AddressFullImportDawa> logger,
-        IEventStore eventStore)
+        IEventStore eventStore,
+        AddressImportSettings settings)
     {
-        _dawaClient = new(httpClient);
+        _dawaClient = new(httpClient, settings.DatafordelerApiKey);
         _logger = logger;
         _eventStore = eventStore;
     }
 
-    public async Task Start(
-        ulong transactionId,
+    public async Task<DateTime> Start(
         CancellationToken cancellationToken = default)
     {
+        var latestGeneration = await _dawaClient.LatestGenerationNumberCurrentTotalDownloadAsync(cancellationToken).ConfigureAwait(false);
+        if (latestGeneration is null)
+        {
+            throw new InvalidOperationException("Not all generation numbers are equal, cannot do full import.");
+        }
+
+        var latestGenerationNumber = latestGeneration.Value.generationNumber;
+        var latestGenerationTimeStamp = latestGeneration.Value.dateTime;
+
         _logger.LogInformation(
-            "Starting full import of post codes using tid '{TransactionId}'.",
-            transactionId);
-        var insertedPostCodesCount = await FullImportPostCodes(
-            transactionId, cancellationToken).ConfigureAwait(false);
+            "Found latest {GenerationId} from current generation total download with {LatestGenerationNumberTimeStamp}",
+            latestGenerationNumber,
+            latestGenerationTimeStamp);
+
+        // Post codes
+        _logger.LogInformation(
+            "Starting full import of post codes using timestamp: '{TimeStamp}'.",
+            latestGenerationTimeStamp);
+
+        var insertedPostCodesCount = await FullImportPostCodes(cancellationToken).ConfigureAwait(false);
         _logger.LogInformation(
             "Finished inserting '{Count}' post codes.", insertedPostCodesCount);
 
+        // Active and temporary roads
         _logger.LogInformation(
-            "Starting full import of roads using tid '{TransactionId}'.",
-            transactionId);
-        var insertedRoadsCount = await FullImportRoads(
-            transactionId, cancellationToken).ConfigureAwait(false);
+            "Starting full import of Active and temporary roads using timestamp: '{TimeStamp}'.",
+            latestGenerationTimeStamp);
+        var insertedActiveRoadsCount = await FullImportRoads(new () { DawaRoadStatus.Effective,  DawaRoadStatus.Temporary }, cancellationToken).ConfigureAwait(false);
         _logger.LogInformation(
-            "Finished inserting '{Count}' roads.", insertedRoadsCount);
+            "Finished inserting '{Count}' active and temporary roads.",
+            insertedActiveRoadsCount);
 
+        // Active and pending access addresses
+        _logger.LogInformation("Starting full import of active and pending access addresses using timestamp: '{TimeStamp}'.", latestGenerationTimeStamp);
+        var insertedPendingAccessAddressesCount = await FullImportAccessAdress(
+            new() { DawaStatus.Active, DawaStatus.Pending }, cancellationToken).ConfigureAwait(false);
         _logger.LogInformation(
-            "Starting full import of access addresses using tid '{TransactionId}'.",
-            transactionId);
-        var insertedAccessAddressesCount = await FullImportAccessAdress(
-            transactionId, cancellationToken).ConfigureAwait(false);
-        _logger.LogInformation(
-            "Finished inserting '{Count}' access addresses.", insertedAccessAddressesCount);
+            "Finished inserting '{Count}' of active and pending access addresses.",
+            insertedPendingAccessAddressesCount);
 
+        // Active unit addresses
         _logger.LogInformation(
-            "Starting full import of unit addresses using tid '{TransactionId}'.",
-            transactionId);
-        var insertedUnitAddressesCount = await FullImportUnitAddresses(
-            transactionId, cancellationToken).ConfigureAwait(false);
+            "Starting full import of Active unit addresses using timestamp: '{TimeStamp}'.",
+            latestGenerationTimeStamp);
+        var insertedActiveUnitAddressesCount = await FullImportUnitAddresses(
+            new() { DawaStatus.Active, DawaStatus.Pending }, cancellationToken).ConfigureAwait(false);
         _logger.LogInformation(
-            "Finished inserting '{Count}' unit-addresses.", insertedUnitAddressesCount);
+            "Finished inserting a total '{Count}' of active and pending unit-addresses.", insertedActiveUnitAddressesCount);
+
+        return latestGenerationTimeStamp;
     }
 
     private async Task<int> FullImportRoads(
-        ulong transactionId, CancellationToken cancellationToken)
+        HashSet<DawaRoadStatus> includedStatuses, CancellationToken cancellationToken)
     {
-        var dawaRoadsAsyncEnumerable = _dawaClient
-            .GetAllRoadsAsync(transactionId, cancellationToken)
-            .ConfigureAwait(false);
-
         var addressProjection = _eventStore.Projections.Get<AddressProjection>();
         var existingRoadOfficialIds = addressProjection.RoadExternalIdIdToId;
 
         var count = 0;
         var aggregates = new List<RoadAR>();
-        await foreach (var dawaRoad in dawaRoadsAsyncEnumerable)
+        await foreach (var dawaRoad in _dawaClient.GetAllRoadsAsync(includedStatuses, cancellationToken).ConfigureAwait(false))
         {
             if (aggregates.Count == _bulkCount)
             {
@@ -118,19 +133,16 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
         return count;
     }
 
-    private async Task<int> FullImportPostCodes(
-        ulong transactionId, CancellationToken cancellationToken)
+    private async Task<int> FullImportPostCodes(CancellationToken cancellationToken)
     {
-        var dawaPostCodesAsyncEnumerable = _dawaClient
-            .GetAllPostCodesAsync(transactionId, cancellationToken)
-            .ConfigureAwait(false);
+;
 
         var addressProjection = _eventStore.Projections.Get<AddressProjection>();
         var existingOfficialPostCodeNumbers = addressProjection.PostCodeNumberToId;
 
         var count = 0;
         var aggregates = new List<PostCodeAR>();
-        await foreach (var dawaPostCode in dawaPostCodesAsyncEnumerable)
+        await foreach (var dawaPostCode in _dawaClient .GetAllPostCodesAsync(cancellationToken).ConfigureAwait(false))
         {
             if (aggregates.Count == _bulkCount)
             {
@@ -176,23 +188,19 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
         return count;
     }
 
-    private async Task<int> FullImportAccessAdress(
-        ulong transactionId, CancellationToken cancellationToken)
+    private async Task<int> FullImportAccessAdress(HashSet<DawaStatus> includedStatuses, CancellationToken cancellationToken)
     {
         var addressProjection = _eventStore.Projections.Get<AddressProjection>();
-
-        var dawaAccessAddressesAsyncEnumerable = _dawaClient
-            .GetAllAccessAddresses(transactionId, cancellationToken)
-            .ConfigureAwait(false);
 
         // Important to be computed outside the loop, the computation is expensive.
         var existingRoadIds = addressProjection.GetRoadIds();
         var existingPostCodeIds = addressProjection.GetPostCodeIds();
         var officialAccessAddressIds = addressProjection.AccessAddressExternalIdToId;
 
+        var insertedIds = new HashSet<Guid>();
         var count = 0;
         var aggregates = new List<AccessAddressAR>();
-        await foreach (var dawaAccessAddress in dawaAccessAddressesAsyncEnumerable)
+        await foreach (var dawaAccessAddress in _dawaClient.GetAllAccessAddressesAsync(includedStatuses, cancellationToken).ConfigureAwait(false))
         {
             if (aggregates.Count == _bulkCount)
             {
@@ -202,11 +210,10 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
                 aggregates.Clear();
             }
 
-            if (officialAccessAddressIds.ContainsKey(dawaAccessAddress.Id.ToString()))
+            if (insertedIds.Contains(dawaAccessAddress.Id))
             {
-                _logger.LogDebug(
-                    @"Access address with official id: '{DawaAccessAddressOfficialId}'
-has already been created.",
+                _logger.LogWarning(
+                    "Access address with official id: '{DawaAccessAddressOfficialId}' has already been created.",
                     dawaAccessAddress.Id);
                 continue;
             }
@@ -254,6 +261,7 @@ post district code: '{PostDistrictCode}'.",
             {
                 count++;
                 aggregates.Add(accessAddressAR);
+                insertedIds.Add(dawaAccessAddress.Id);
             }
             else
             {
@@ -270,22 +278,18 @@ post district code: '{PostDistrictCode}'.",
         return count;
     }
 
-    private async Task<int> FullImportUnitAddresses(
-        ulong transactionId, CancellationToken cancellationToken)
+    private async Task<int> FullImportUnitAddresses(HashSet<DawaStatus> includedStatuses, CancellationToken cancellationToken)
     {
         var addressProjection = _eventStore.Projections.Get<AddressProjection>();
-
-        var dawaUnitAddresssesAsyncEnumerable = _dawaClient
-            .GetAllUnitAddresses(transactionId, cancellationToken)
-            .ConfigureAwait(false);
 
         // Important to be computed outside the loop, the computation is expensive.
         var existingAccessAddressIds = addressProjection.AccessAddressIds;
         var unitAddressOfficialIds = addressProjection.UnitAddressExternalIdToId;
 
+        var insertedIds = new HashSet<Guid>();
         var count = 0;
         var aggregates = new List<UnitAddressAR>();
-        await foreach (var dawaUnitAddress in dawaUnitAddresssesAsyncEnumerable)
+        await foreach (var dawaUnitAddress in _dawaClient.GetAllUnitAddressesAsync(includedStatuses, cancellationToken).ConfigureAwait(false))
         {
             if (aggregates.Count == _bulkCount)
             {
@@ -295,11 +299,10 @@ post district code: '{PostDistrictCode}'.",
                 aggregates.Clear();
             }
 
-            if (unitAddressOfficialIds.ContainsKey(dawaUnitAddress.Id.ToString()))
+            if (insertedIds.Contains(dawaUnitAddress.Id))
             {
-                _logger.LogDebug(
-                    @"Unit address with official id: '{DawaUnitAddressOfficialId}'
-has already been created.",
+                _logger.LogWarning(
+                    "Unit address with official id: '{DawaUnitAddressOfficialId}' has already been created.",
                     dawaUnitAddress.Id);
                 continue;
             }
@@ -332,6 +335,7 @@ has already been created.",
             {
                 count++;
                 aggregates.Add(unitAddressAR);
+                insertedIds.Add(dawaUnitAddress.Id);
             }
             else
             {

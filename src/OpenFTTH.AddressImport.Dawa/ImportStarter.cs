@@ -10,117 +10,136 @@ public class ImportStarter
     private readonly ITransactionStore _transactionStore;
     private readonly IAddressFullImport _addressFullImport;
     private readonly IAddressChangesImport _addressChangesImport;
+    private readonly AddressImportSettings _settings;
 
     public ImportStarter(
         ILogger<ImportStarter> logger,
         IEventStore eventStore,
         ITransactionStore transactionStore,
         IAddressFullImport addressFullImport,
-        IAddressChangesImport addressChangesImport)
+        IAddressChangesImport addressChangesImport,
+        AddressImportSettings settings
+    )
     {
         _logger = logger;
         _addressFullImport = addressFullImport;
         _eventStore = eventStore;
         _transactionStore = transactionStore;
         _addressChangesImport = addressChangesImport;
+        _settings = settings;
     }
 
     public async Task Start(CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Starting {Name}.", nameof(ImportStarter));
+        _logger.LogInformation("Starting {Name} with {EnableMigration}.", nameof(ImportStarter), _settings.EnableMigration);
 
         // Init transaction store if not exists
-        await _transactionStore.Init().ConfigureAwait(false);
-
-        _logger.LogInformation("Starting to dehydrate projections.");
-        await _eventStore
-            .DehydrateProjectionsAsync(cancellationToken)
-            .ConfigureAwait(false);
+        await _transactionStore.Init(_settings.EnableMigration).ConfigureAwait(false);
 
         _logger.LogInformation("Getting last completed transaction.");
-        var lastCompletedTransactionId = await _transactionStore
-            .LastCompleted(cancellationToken)
+        var lastCompletedDateTime = await _transactionStore
+            .LastCompletedUtc(cancellationToken)
             .ConfigureAwait(false);
 
-        if (lastCompletedTransactionId is null)
+        if (lastCompletedDateTime is null)
         {
-            var newestTransactionId = await _transactionStore
-                .Newest(cancellationToken)
+            var newestDateTime = await _transactionStore
+                .NewestUtc(cancellationToken)
+                .ConfigureAwait(false);
+
+            _logger.LogInformation("First run, so we do full import.");
+            var fullImportTimeStamp = await _addressFullImport
+                .Start(cancellationToken)
                 .ConfigureAwait(false);
 
             _logger.LogInformation(
-                "First run, so we do full import with transaction id: {TransactionId}.",
-                newestTransactionId);
+                "Storing timestamp: '{TimeStamp}'.",
+                fullImportTimeStamp);
 
-            await _addressFullImport
-                .Start(newestTransactionId, cancellationToken)
+            var storedFullImport = await _transactionStore
+                .Store(fullImportTimeStamp)
+                .ConfigureAwait(false);
+
+            if (!storedFullImport)
+            {
+                throw new InvalidOperationException(
+                    $"Failed storing transaction id: '{fullImportTimeStamp}'");
+            }
+
+            // Get changes from last full improt to newest datetime.
+            _logger.LogInformation("Starting to dehydrate projections.");
+            await _eventStore
+                .CatchUpAsync(cancellationToken)
+                .ConfigureAwait(false);
+
+            _logger.LogInformation("Getting last completed timestamp.");
+            var lastCompletedTimeStamp = await _transactionStore
+                .LastCompletedUtc(cancellationToken)
                 .ConfigureAwait(false);
 
             _logger.LogInformation(
-                "Storing transaction id: '{TransactionId}'.",
-                newestTransactionId);
+                "Starting to import changes from {StartTime} to {EndTime}.",
+                lastCompletedTimeStamp,
+                newestDateTime);
+
+            await _addressChangesImport
+                .Start(lastCompletedTimeStamp!.Value,
+                       newestDateTime,
+                       cancellationToken)
+                .ConfigureAwait(false);
+
+            _logger.LogInformation(
+                "Storing datetime: '{DateTime}'.",
+                newestDateTime);
+
+            var storedChanges = await _transactionStore
+                .Store(newestDateTime)
+                .ConfigureAwait(false);
+
+            if (!storedChanges)
+            {
+                throw new InvalidOperationException(
+                    $"Failed storing date time: '{lastCompletedTimeStamp}'");
+            }
+        }
+        else
+        {
+            _logger.LogInformation("Found last completed transaction {DateTime}.", lastCompletedDateTime);
+
+            _logger.LogInformation("Starting to dehydrate projections.");
+            await _eventStore
+                .DehydrateProjectionsAsync(cancellationToken)
+                .ConfigureAwait(false);
+
+            _logger.LogInformation("Finsihed to dehydrate projections.");
+
+            var newestDateTime = await _transactionStore
+                .NewestUtc(cancellationToken)
+                .ConfigureAwait(false);
+
+            _logger.LogInformation(
+                "Starting import from date time range: {LastCompletedDateTime} - {NewestDateTime}.",
+                lastCompletedDateTime.Value,
+                newestDateTime);
+
+            await _addressChangesImport
+                .Start(lastCompletedDateTime.Value,
+                       newestDateTime,
+                       cancellationToken)
+                .ConfigureAwait(false);
+
+            _logger.LogInformation(
+                "Storing datetime: '{DateTime}'.",
+                newestDateTime);
 
             var stored = await _transactionStore
-                .Store(newestTransactionId)
+                .Store(newestDateTime)
                 .ConfigureAwait(false);
 
             if (!stored)
             {
                 throw new InvalidOperationException(
-                    $"Failed storing transaction id: '{newestTransactionId}'");
-            }
-        }
-        else
-        {
-            var newestTransactionId = await _transactionStore
-                .Newest(cancellationToken)
-                .ConfigureAwait(false);
-
-            if (newestTransactionId > lastCompletedTransactionId.Value)
-            {
-                var transactionIds = await _transactionStore
-                    .TransactionIdsAfter(lastCompletedTransactionId.Value, cancellationToken)
-                    .ConfigureAwait(false);
-
-                var lastTransactionId = lastCompletedTransactionId.Value;
-                foreach (var nextTransactionId in transactionIds)
-                {
-                    _logger.LogInformation(
-                        "Starting import from transaction range: {LastTransactionId} - {NextTransactionId}.",
-                        nextTransactionId,
-                        nextTransactionId);
-
-                    await _addressChangesImport
-                        .Start(nextTransactionId,
-                               nextTransactionId,
-                               cancellationToken)
-                        .ConfigureAwait(false);
-
-                    _logger.LogInformation(
-                        "Storing transaction id: '{TransactionId}'.",
-                        nextTransactionId);
-
-                    var stored = await _transactionStore
-                        .Store(nextTransactionId)
-                        .ConfigureAwait(false);
-
-                    if (!stored)
-                    {
-                        throw new InvalidOperationException(
-                            $"Failed storing transaction id: '{nextTransactionId}'");
-                    }
-
-                    // We update the last completed transaction id to the last completed.
-                    lastTransactionId = nextTransactionId;
-                }
-            }
-            else
-            {
-                _logger.LogInformation(
-                    "No changes in the transaction id, skipping import. {LastTransactionId} - {NewestTransactionId}.",
-                    lastCompletedTransactionId.Value,
-                    newestTransactionId
-                );
+                    $"Failed storing date time: '{newestDateTime}'");
             }
         }
     }
