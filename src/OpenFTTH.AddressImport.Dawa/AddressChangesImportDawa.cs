@@ -11,14 +11,14 @@ internal sealed class AddressChangesImportDawa : IAddressChangesImport
     private readonly DatafordelerClient _datafordelerClient;
     private readonly ILogger<AddressFullImportDawa> _logger;
     private readonly IEventStore _eventStore;
-    private const string _apiKey = "";
 
     public AddressChangesImportDawa(
         HttpClient httpClient,
         ILogger<AddressFullImportDawa> logger,
-        IEventStore eventStore)
+        IEventStore eventStore,
+        AddressImportSettings settings)
     {
-        _datafordelerClient = new DatafordelerClient(httpClient, _apiKey);
+        _datafordelerClient = new DatafordelerClient(httpClient, settings.DatafordelerApiKey);
         _logger = logger;
         _eventStore = eventStore;
     }
@@ -39,6 +39,7 @@ internal sealed class AddressChangesImportDawa : IAddressChangesImport
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
+        // Road changes
         var roadChanges = await _datafordelerClient
             .GetAllRoadsAsync(fromTimeStamp, toTimeStamp, null, cancellationToken)
             .ToListAsync(cancellationToken).ConfigureAwait(false);
