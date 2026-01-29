@@ -58,9 +58,7 @@ internal sealed class AddressChangesImportDawa : IAddressChangesImport
 
         foreach (var change in postCodeChanges)
         {
-            // We do minimum value to make sure post codes always come first.
-            // We  do now get the timestamp it was updated from Datafordeleren.
-            entityChanges.Add(new(DateTime.MinValue, change));
+            entityChanges.Add(new (change.Updated ?? DateTime.MinValue, change));
         }
 
         foreach (var change in roadChanges)
