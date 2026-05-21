@@ -18,3 +18,7 @@ dotnet_diagnostic.CA1515.severity = none
 
 # CA2100: No user defined inputs.
 dotnet_diagnostic.CA2100.severity = none
+
+# CA1873: Evaluation of this argument may be expensive and unnecessary if logging is disabled.
+# We won't disable logging.
+dotnet_diagnostic.CA1873.severity = none
