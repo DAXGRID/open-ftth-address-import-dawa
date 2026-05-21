@@ -6,7 +6,7 @@ using System.Text.Json;
 
 namespace OpenFTTH.AddressImport.Dawa;
 
-internal sealed class AddressChangesImportDawa : IAddressChangesImport
+internal sealed class AddressChangesImportDawa : IAddressChangesImport, IDisposable
 {
     private readonly DatafordelerClient _datafordelerClient;
     private readonly ILogger<AddressFullImportDawa> _logger;
@@ -827,6 +827,11 @@ official accessAddressId: '{AccessAddressId}'.",
             throw new InvalidOperationException(
                 "No valid handling of unit address DAWA change.");
         }
+    }
+
+    public void Dispose()
+    {
+        _datafordelerClient.Dispose();
     }
 }
 

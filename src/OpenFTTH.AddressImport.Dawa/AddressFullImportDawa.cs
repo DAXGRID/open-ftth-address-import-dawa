@@ -5,9 +5,9 @@ using OpenFTTH.EventSourcing;
 
 namespace OpenFTTH.AddressImport.Dawa;
 
-internal sealed class AddressFullImportDawa : IAddressFullImport
+internal sealed class AddressFullImportDawa : IAddressFullImport, IDisposable
 {
-    private readonly DatafordelerClient _dawaClient;
+    private readonly DatafordelerClient _datafordelerClient;
     private readonly ILogger<AddressFullImportDawa> _logger;
     private readonly IEventStore _eventStore;
     private const int _bulkCount = 5000;
@@ -18,7 +18,7 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
         IEventStore eventStore,
         AddressImportSettings settings)
     {
-        _dawaClient = new(httpClient, settings.DatafordelerApiKey);
+        _datafordelerClient = new(httpClient, settings.DatafordelerApiKey);
         _logger = logger;
         _eventStore = eventStore;
     }
@@ -26,7 +26,7 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
     public async Task<DateTime> Start(
         CancellationToken cancellationToken = default)
     {
-        var latestGeneration = await _dawaClient.LatestGenerationNumberCurrentTotalDownloadAsync(cancellationToken).ConfigureAwait(false);
+        var latestGeneration = await _datafordelerClient.LatestGenerationNumberCurrentTotalDownloadAsync(cancellationToken).ConfigureAwait(false);
         if (latestGeneration is null)
         {
             throw new InvalidOperationException("Not all generation numbers are equal, cannot do full import.");
@@ -86,7 +86,7 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
 
         var count = 0;
         var aggregates = new List<RoadAR>();
-        await foreach (var dawaRoad in _dawaClient.GetAllRoadsAsync(includedStatuses, cancellationToken).ConfigureAwait(false))
+        await foreach (var dawaRoad in _datafordelerClient.GetAllRoadsAsync(includedStatuses, cancellationToken).ConfigureAwait(false))
         {
             if (aggregates.Count == _bulkCount)
             {
@@ -142,7 +142,7 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
 
         var count = 0;
         var aggregates = new List<PostCodeAR>();
-        await foreach (var dawaPostCode in _dawaClient .GetAllPostCodesAsync(cancellationToken).ConfigureAwait(false))
+        await foreach (var dawaPostCode in _datafordelerClient .GetAllPostCodesAsync(cancellationToken).ConfigureAwait(false))
         {
             if (aggregates.Count == _bulkCount)
             {
@@ -200,7 +200,7 @@ internal sealed class AddressFullImportDawa : IAddressFullImport
         var insertedIds = new HashSet<Guid>();
         var count = 0;
         var aggregates = new List<AccessAddressAR>();
-        await foreach (var dawaAccessAddress in _dawaClient.GetAllAccessAddressesAsync(includedStatuses, cancellationToken).ConfigureAwait(false))
+        await foreach (var dawaAccessAddress in _datafordelerClient.GetAllAccessAddressesAsync(includedStatuses, cancellationToken).ConfigureAwait(false))
         {
             if (aggregates.Count == _bulkCount)
             {
@@ -289,7 +289,7 @@ post district code: '{PostDistrictCode}'.",
         var insertedIds = new HashSet<Guid>();
         var count = 0;
         var aggregates = new List<UnitAddressAR>();
-        await foreach (var dawaUnitAddress in _dawaClient.GetAllUnitAddressesAsync(includedStatuses, cancellationToken).ConfigureAwait(false))
+        await foreach (var dawaUnitAddress in _datafordelerClient.GetAllUnitAddressesAsync(includedStatuses, cancellationToken).ConfigureAwait(false))
         {
             if (aggregates.Count == _bulkCount)
             {
@@ -350,5 +350,10 @@ post district code: '{PostDistrictCode}'.",
             .ConfigureAwait(false);
 
         return count;
+    }
+
+    public void Dispose()
+    {
+        _datafordelerClient.Dispose();
     }
 }
