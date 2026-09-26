@@ -9,7 +9,7 @@ executors:
         password: $DOCKER_ACCESSTOKEN
   docker-publisher:
     environment:
-      IMAGE_NAME: openftth/address-import-dawa
+      IMAGE_NAME: daxgrid/address-import-dawa
     docker:
       - image: cimg/base:current
         auth:
