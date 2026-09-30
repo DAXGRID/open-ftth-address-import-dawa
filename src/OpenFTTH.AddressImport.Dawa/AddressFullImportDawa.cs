@@ -26,7 +26,7 @@ internal sealed class AddressFullImportDawa : IAddressFullImport, IDisposable
     public async Task<DateTime> Start(
         CancellationToken cancellationToken = default)
     {
-        var latestGeneration = await _datafordelerClient.LatestGenerationNumberCurrentTotalDownloadAsync(cancellationToken).ConfigureAwait(false);
+        var latestGeneration = await _datafordelerClient.LatestGenerationNumberCurrentTotalDownloadAsync("DAR", cancellationToken).ConfigureAwait(false);
         if (latestGeneration is null)
         {
             throw new InvalidOperationException("Not all generation numbers are equal, cannot do full import.");
