@@ -18,5 +18,6 @@ WORKDIR /app
 
 RUN apk add --no-cache icu-libs krb5-libs
 
-COPY --from=build-env /app/src/OpenFTTH.AddressImport.Dawa/out .
+COPY --from=build-env --chown=app:app /app/src/OpenFTTH.AddressImport.Dawa/out .
+USER app
 ENTRYPOINT ["dotnet", "OpenFTTH.AddressImport.Dawa.dll"]
