@@ -13,8 +13,8 @@
 
   <ItemGroup>
     <PackageReference Include="DawaAddress" Version="0.29.0" />
-    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.12" />
-    <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.12" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.13" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.13" />
     <PackageReference Include="npgsql" Version="10.0.3" />
     <PackageReference Include="OpenFTTH.Core.Address" Version="10.0.0" />
     <PackageReference Include="OpenFTTH.EventSourcing" Version="10.0.0" />
