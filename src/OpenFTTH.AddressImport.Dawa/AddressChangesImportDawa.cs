@@ -54,29 +54,107 @@ internal sealed class AddressChangesImportDawa : IAddressChangesImport, IDisposa
             .GetAllUnitAddressesAsync(fromTimeStamp, toTimeStamp, null, cancellationToken)
             .ToListAsync(cancellationToken).ConfigureAwait(false);
 
-        var entityChanges = new List<(DateTime sequenceNumber, object data)>();
+        var createOrUpdateEntityChanges = new List<(DateTime updatedDate, object data)>();
+        var deleteEntityChanges = new List<(DateTime updatedDate, object data)>();
 
         foreach (var change in postCodeChanges)
         {
-            entityChanges.Add(new (change.Updated ?? DateTime.MinValue, change));
+            if (change.Status == DawaPostCodeStatus.Discontinued)
+            {
+                deleteEntityChanges.Add(new(change.Updated ?? DateTime.MinValue, change));
+            }
+            else
+            {
+                createOrUpdateEntityChanges.Add(new(change.Updated ?? DateTime.MinValue, change));
+            }
         }
 
         foreach (var change in roadChanges)
         {
-            entityChanges.Add(new(change.Updated, change));
+            if (change.Status == DawaRoadStatus.Discontinued || change.Status == DawaRoadStatus.Canceled)
+            {
+                deleteEntityChanges.Add(new(change.Updated, change));
+            }
+            else
+            {
+                createOrUpdateEntityChanges.Add(new(change.Updated, change));
+            }
         }
 
         foreach (var change in accessAddressChanges)
         {
-            entityChanges.Add(new(change.Updated, change));
+            if (change.Status == DawaStatus.Canceled || change.Status == DawaStatus.Discontinued)
+            {
+                deleteEntityChanges.Add(new(change.Updated, change));
+            }
+            else
+            {
+                createOrUpdateEntityChanges.Add(new(change.Updated, change));
+            }
         }
 
         foreach (var change in unitAddressChanges)
         {
-            entityChanges.Add(new(change.Updated, change));
+            if (change.Status == DawaStatus.Canceled || change.Status == DawaStatus.Discontinued)
+            {
+                deleteEntityChanges.Add(new(change.Updated, change));
+            }
+            else
+            {
+                createOrUpdateEntityChanges.Add(new(change.Updated, change));
+            }
         }
 
-        foreach (var entityChange in entityChanges.OrderBy(x => x.sequenceNumber))
+        foreach (var entityChange in createOrUpdateEntityChanges
+                 .OrderBy(x => x.data switch
+                 {
+                     DawaPostCode => 0,
+                     DawaRoad => 1,
+                     DawaAccessAddress => 2,
+                     DawaUnitAddress => 3,
+                     _ => throw new ArgumentException($"Could not handle {x.data.GetType()}")
+                 }).ThenBy(x => x.updatedDate))
+        {
+            _logger.LogInformation("Processing {Change}", JsonSerializer.Serialize(entityChange.data));
+
+            try
+            {
+                switch (entityChange.data)
+                {
+                    case DawaPostCode dawaPostCodeChange:
+                        await ImportPostCodeChange(dawaPostCodeChange).ConfigureAwait(false);
+                        break;
+                    case DawaRoad dawaRoadChange:
+                        await ImportRoadChange(dawaRoadChange).ConfigureAwait(false);
+                        break;
+                    case DawaAccessAddress dawaAccessAddressChange:
+                        await ImportAccessAddressChange(dawaAccessAddressChange).ConfigureAwait(false);
+                        break;
+                    case DawaUnitAddress dawaUnitAddressChange:
+                        await ImportUnitAddressChange(dawaUnitAddressChange).ConfigureAwait(false);
+                        break;
+                    default:
+                        throw new ArgumentException($"Unsupported type.");
+                }
+
+                await _eventStore.CatchUpAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogCritical("Failed on change {Change}, {Exception}", JsonSerializer.Serialize(entityChange.data), ex);
+                throw;
+            }
+        }
+
+        foreach (var entityChange in deleteEntityChanges
+                 .OrderBy(x => x.data switch
+                 {
+                     DawaUnitAddress => 0,
+                     DawaAccessAddress => 1,
+                     DawaRoad => 2,
+                     DawaPostCode => 3,
+                     _ => throw new ArgumentException($"Could not handle {x.data.GetType()}")
+                 }).ThenBy(x => x.updatedDate))
         {
             _logger.LogInformation("Processing {Change}", JsonSerializer.Serialize(entityChange.data));
 
